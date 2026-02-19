@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react'
+﻿import { CalendarDays } from 'lucide-react'
 
 function Hero() {
   return (
@@ -15,9 +15,9 @@ function Hero() {
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 pb-32 text-center sm:px-6 lg:px-8 lg:pb-48">
         <div className="max-w-4xl">
           <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
-            Especialista en endoscopia bariatrica, terapeutica
+            Especialista en endoscopía bariátrica, terapéutica
           </h1>
-          <p className="mt-4 text-xl text-white sm:text-2xl">y colocacion de balon gastrico.</p>
+          <p className="mt-4 text-xl text-white sm:text-2xl">y colocación de balón gástrico.</p>
           <a
             href="#agendar"
             className="mx-auto mt-8 inline-flex items-center gap-2 rounded-lg bg-accent-green px-7 py-3 text-sm font-semibold text-white transition hover:brightness-95"

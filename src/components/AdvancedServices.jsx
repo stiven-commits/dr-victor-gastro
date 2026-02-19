@@ -1,4 +1,4 @@
-import { Phone } from 'lucide-react'
+﻿import { Phone } from 'lucide-react'
 
 const serviceCards = [
   {
@@ -86,7 +86,11 @@ function AdvancedServices() {
 
           {serviceCards.map((card) => (
             <article key={card.number} className="relative h-80 overflow-hidden">
-              <img src={card.image} alt={card.title} className="h-full w-full object-cover" />
+              <img
+                src={card.image}
+                alt={card.title}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
               <div className="absolute inset-0 bg-[#2a3b5c]/80" />
               <div className="relative z-10 flex h-full flex-col justify-start p-6 text-white">
                 <p className="text-sm font-semibold text-white/90">{card.number}</p>
@@ -101,7 +105,7 @@ function AdvancedServices() {
               <Phone size={15} />
               <span>MÁS INFORMACIÓN Y AGENDAR TU CITA</span>
             </p>
-            <p className="mt-4 text-3xl font-extrabold">+584127369667</p>
+            <p className="mt-4 text-3xl font-extrabold">04127369667</p>
           </article>
         </div>
       </div>

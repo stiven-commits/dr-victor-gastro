@@ -1,4 +1,4 @@
-import { MessageCircle } from 'lucide-react'
+﻿import { MessageCircle } from 'lucide-react'
 
 function AppointmentBanner() {
   return (
@@ -9,7 +9,7 @@ function AppointmentBanner() {
           <p className="mt-5 text-base leading-relaxed text-white/90">
             Con una sólida formación académica y años de experiencia en procedimientos avanzados,
             el Dr. Victor Manrique se posiciona como una de las mejores opciones en
-            gastroenterología. Especializado en endoscopia bariátrica y terapéutica, tratamientos
+            gastroenterología. Especializado en endoscopía bariátrica y terapéutica, tratamientos
             de vías biliares y colocación de balón gástrico, ofrece un enfoque integral y
             personalizado para cada paciente.
           </p>
@@ -25,7 +25,7 @@ function AppointmentBanner() {
               <p className="text-xs font-semibold tracking-wider text-white/80">
                 CONTÁCTAME POR WHATSAPP
               </p>
-              <p className="text-lg font-bold text-white">+584127369667</p>
+              <p className="text-lg font-bold text-white">04127369667</p>
             </div>
           </a>
         </div>
@@ -53,7 +53,7 @@ function AppointmentBanner() {
               />
               <input
                 type="tel"
-                placeholder="Su numero de telefono"
+                placeholder="Su número de teléfono"
                 className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-slate-700 outline-none transition focus:border-blue-400"
               />
 

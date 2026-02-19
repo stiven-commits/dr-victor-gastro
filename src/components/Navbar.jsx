@@ -6,12 +6,11 @@ function Navbar() {
   const [hasScrolled, setHasScrolled] = useState(false)
 
   const navLinks = [
-    { label: 'Inicio', href: '#inicio' },
-    { label: 'Perfil del doctor', href: '#nosotros' },
-    { label: 'Servicios', href: '#servicios' },
-    { label: 'Opiniones', href: '#opiniones' },
-    { label: 'Contacto', href: '#contacto' },
-    { label: 'Cookie Policy', href: '#cookie-policy' },
+    { label: 'Inicio', href: '/#inicio' },
+    { label: 'Perfil del doctor', href: '/#nosotros' },
+    { label: 'Servicios', href: '/#servicios' },
+    { label: 'Opiniones', href: '/#opiniones' },
+    { label: 'Contacto', href: '/#contacto' },
   ]
 
   useEffect(() => {
@@ -38,7 +37,7 @@ function Navbar() {
   return (
     <header className={`fixed top-0 left-0 z-50 w-full transition-colors duration-300 ${headerClass}`}>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <a href="#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
+        <a href="/#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-light-blue text-sm font-bold text-medical-blue">
             DV
           </div>
@@ -66,7 +65,7 @@ function Navbar() {
             rel="noreferrer"
             className={`rounded-md border px-4 py-2 text-sm font-semibold transition hover:brightness-95 ${whatsappButtonClass}`}
           >
-            WhatsApp: +584127369667
+            WhatsApp: 04127369667
           </a>
         </nav>
 
@@ -102,7 +101,7 @@ function Navbar() {
               className={`mt-2 inline-flex w-fit rounded-md border px-4 py-2 text-sm font-semibold transition hover:brightness-95 ${whatsappButtonClass}`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              WhatsApp: +584127369667
+              WhatsApp: 04127369667
             </a>
           </nav>
         </div>

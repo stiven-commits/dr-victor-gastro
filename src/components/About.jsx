@@ -1,9 +1,10 @@
-import { CheckCircle2 } from 'lucide-react'
+﻿import { CheckCircle2 } from 'lucide-react'
 
 const highlights = [
-  'Certificacion Internacional',
-  'Tecnologia Avanzada',
-  'Atencion Personalizada',
+  'Médico cirujano egresado de la Universidad Rómulo Gallegos.',
+  'Especialización en vías biliares en la Cruz Roja Venezolana.',
+  'Entrenamientos: Balón gástrico en Medellín. Gastroplastias endoscópicas en Hermosillo y Tijuana. Inteligencia artificial en República Dominicana.',
+  'Amplia experiencia en endoscopía terapéutica y diagnóstica.',
 ]
 
 function About() {
@@ -20,13 +21,11 @@ function About() {
 
         <div>
           <span className="inline-flex rounded-full bg-light-blue px-4 py-1.5 text-xs font-semibold tracking-wide text-medical-blue">
-            Sobre mi
+            Sobre mí
           </span>
           <h2 className="mt-4 text-3xl font-bold text-slate-900 sm:text-4xl">Trayectoria y Experiencia</h2>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600">
-            El Dr. Victor se ha formado en gastroenterologia clinica y endoscopia digestiva a
-            traves de programas especializados, combinando actualizacion academica constante con
-            experiencia hospitalaria para ofrecer diagnosticos precisos y tratamientos efectivos.
+            Con más de 13 años de experiencia como médico, el Dr. Victor Manrique combina tecnología avanzada y técnicas modernas para mejorar tu calidad de vida.
           </p>
 
           <ul className="mt-6 space-y-3">

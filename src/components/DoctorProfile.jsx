@@ -7,7 +7,8 @@ function DoctorProfile() {
         <div>
           <h2 className="text-4xl font-bold text-medical-blue">Dr. Víctor</h2>
           <p className="mt-5 text-base leading-relaxed text-slate-600">
-            Con más de 13 años de experiencia cómo Médico, el Dr. Victor Manrique combina tecnología avanzada y técnicas modernas para mejorar tu calidad de vida.
+            Con más de 13 años de experiencia como médico, el Dr. Victor Manrique combina
+            tecnología avanzada y técnicas modernas para mejorar tu calidad de vida.
           </p>
 
           <ul className="mt-6 space-y-6">

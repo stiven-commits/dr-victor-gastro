@@ -1,19 +1,20 @@
-import { Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react'
+﻿import { Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 function Footer() {
   return (
     <footer className="bg-slate-950 text-slate-200">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-3 lg:px-8">
         <div>
-          <a href="#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
+          <a href="/#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-medical-blue/20 text-sm font-bold text-light-blue">
               DV
             </div>
             <p className="text-base font-semibold text-white">Dr. Victor</p>
           </a>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">
-            Atencion especializada en gastroenterologia y endoscopia digestiva con enfoque humano,
-            etico y orientado a un diagnostico preciso.
+            Atención especializada en gastroenterología y endoscopia digestiva con enfoque humano,
+            ético y orientado a un diagnóstico preciso.
           </p>
           <div className="mt-5 flex items-center gap-3">
             <a
@@ -40,12 +41,24 @@ function Footer() {
         <div>
           <h3 className="text-base font-semibold text-white">Enlaces Rapidos</h3>
           <nav className="mt-4 flex flex-col gap-3 text-sm">
-            <a href="#servicios" className="transition hover:text-medical-blue">
+            <a href="/#inicio" className="transition hover:text-medical-blue">
+              Inicio
+            </a>
+            <a href="/#nosotros" className="transition hover:text-medical-blue">
+              Perfil del doctor
+            </a>
+            <a href="/#servicios" className="transition hover:text-medical-blue">
               Servicios
             </a>
-            <a href="#faq" className="transition hover:text-medical-blue">
-              Preguntas Frecuentes
+            <a href="/#opiniones" className="transition hover:text-medical-blue">
+              Opiniones
             </a>
+            <a href="/#contacto" className="transition hover:text-medical-blue">
+              Contacto
+            </a>
+            <Link to="/cookie-policy" className="transition hover:text-medical-blue">
+              Cookie Policy
+            </Link>
           </nav>
         </div>
 
@@ -54,7 +67,7 @@ function Footer() {
           <div className="mt-4 space-y-3 text-sm">
             <p className="flex items-start gap-3">
               <MapPin size={17} className="mt-0.5 text-medical-blue" />
-              <span>Av. Principal 123, Consultorio 4B, Ciudad</span>
+              <span>Edif. Centro Uno, Piso 3, San Bernardino, Caracas</span>
             </p>
             <a
               href="https://wa.me/584127369667"
@@ -66,11 +79,11 @@ function Footer() {
               <span>+58 412 7369667</span>
             </a>
             <a
-              href="mailto:contacto@drvictor.com"
+              href="mailto:consulta@drvictorgastro.com"
               className="flex items-center gap-3 transition hover:text-medical-blue"
             >
               <Mail size={17} className="text-medical-blue" />
-              <span>contacto@drvictor.com</span>
+              <span>consulta@drvictorgastro.com</span>
             </a>
           </div>
         </div>
@@ -78,7 +91,16 @@ function Footer() {
 
       <div className="border-t border-slate-800 px-4 py-4 sm:px-6 lg:px-8">
         <p className="text-center text-xs text-slate-400">
-          © {new Date().getFullYear()} Dr. Victor. Diseñado para Dr. Víctor.
+          © {new Date().getFullYear()} Dr. Victor. Diseñado por .{' '}
+          <a
+            href="https://www.sosmarketing.agency"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sky-300 transition hover:text-white"
+          >
+            SOS Marketing Agency
+          </a>
+          .
         </p>
       </div>
     </footer>

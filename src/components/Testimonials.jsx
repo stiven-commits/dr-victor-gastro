@@ -29,18 +29,13 @@ function Testimonials() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-3xl font-bold text-white">Lo que dicen nuestros pacientes</h2>
 
-        <div className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-2">
+        <div className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {testimonials.map((item) => (
             <article
               key={item.name}
-              className="w-[85%] shrink-0 snap-start rounded-2xl bg-white p-6 shadow-sm sm:w-[65%] lg:w-[calc((100%-3rem)/3)]"
+              className="w-[85%] shrink-0 snap-start rounded-2xl border border-slate-100 bg-white p-8 shadow-sm sm:w-[65%] lg:w-[calc((100%-3rem)/3)]"
             >
-              <div className="mb-4 flex items-center gap-3">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="h-12 w-12 rounded-full object-cover ring-2 ring-light-blue"
-                />
+              <div className="mb-4 flex flex-col items-start gap-1">
                 <div>
                   <p className="font-semibold text-slate-900">{item.name}</p>
                   <div className="mt-1 flex items-center gap-1 text-amber-400">
