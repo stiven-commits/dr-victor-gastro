@@ -1,16 +1,17 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { useNavigate } from 'react-router-dom';
 
 function AppointmentBanner() {
   const form = useRef();
   const [status, setStatus] = useState('Enviar');
+  const navigate = useNavigate();
 
   const sendEmail = (e) => {
     e.preventDefault();
     setStatus('Enviando...');
 
-    // ASEGÚRATE DE CAMBIAR ESTOS 3 VALORES POR LOS TUYOS
     emailjs
       .sendForm(
         'service_nz37t1p',
@@ -21,9 +22,8 @@ function AppointmentBanner() {
       .then(
         (result) => {
           console.log('Éxito:', result.text);
-          setStatus('¡Enviado con éxito!');
-          e.target.reset(); // Limpia los campos del formulario
-          setTimeout(() => setStatus('Enviar'), 3000); // Restaura el botón después de 3 seg
+          e.target.reset();
+          navigate('/gracias');
         },
         (error) => {
           console.log('Error:', error.text);

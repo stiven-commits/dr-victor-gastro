@@ -9,6 +9,7 @@ import About from './components/About'
 import Features from './components/Features'
 import Testimonials from './components/Testimonials'
 import ContactMap from './components/ContactMap'
+import ThankYou from './components/ThankYou';
 import Footer from './components/Footer'
 import CookiePolicy from './pages/CookiePolicy'
 
@@ -40,6 +41,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/cookie-policy" element={<CookiePolicy />} />
+          <Route path="/gracias" element={<ThankYou />} />
         </Routes>
         <Footer />
       </div>
