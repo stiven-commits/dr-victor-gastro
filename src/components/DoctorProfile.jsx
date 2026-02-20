@@ -1,4 +1,6 @@
 ﻿import { ShieldPlus, Stethoscope, Target } from 'lucide-react'
+import docMainImg from '../assets/MG_3867.jpg'
+import docSubImg from '../assets/MG_3835.jpg'
 
 function DoctorProfile() {
   return (
@@ -40,13 +42,13 @@ function DoctorProfile() {
 
         <div className="relative">
           <img
-            src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=600"
+            src={docMainImg}
             alt="Dr. Víctor en consulta"
-            className="w-full rounded-3xl object-cover shadow-md"
+            className="mx-auto w-11/12 sm:w-4/5 lg:w-1/2 rounded-3xl object-cover shadow-md"
           />
 
           <img
-            src="https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=300"
+            src={docSubImg}
             alt="Procedimiento médico"
             className="absolute -bottom-10 -left-10 w-1/2 rounded-2xl border-8 border-white object-cover shadow-xl"
           />

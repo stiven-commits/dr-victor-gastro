@@ -1,4 +1,5 @@
 ﻿import { Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react'
+import logoWhite from '../assets/logo-dr-victor-h-blanco-2.png';
 import { Link } from 'react-router-dom'
 
 function Footer() {
@@ -6,11 +7,8 @@ function Footer() {
     <footer className="bg-slate-950 text-slate-200">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-3 lg:px-8">
         <div>
-          <a href="/#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-medical-blue/20 text-sm font-bold text-light-blue">
-              DV
-            </div>
-            <p className="text-base font-semibold text-white">Dr. Victor</p>
+          <a href="#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
+            <img src={logoWhite} alt="Logo Dr. Víctor Manrique" className="h-12 w-auto object-contain" />
           </a>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">
             Atención especializada en gastroenterología y endoscopia digestiva con enfoque humano,
@@ -53,7 +51,7 @@ function Footer() {
             <a href="/#opiniones" className="transition hover:text-medical-blue">
               Opiniones
             </a>
-            <a href="/#contacto" className="transition hover:text-medical-blue">
+            <a href="/#agendar" className="transition hover:text-medical-blue">
               Contacto
             </a>
             <Link to="/cookie-policy" className="transition hover:text-medical-blue">

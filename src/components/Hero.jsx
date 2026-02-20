@@ -1,14 +1,12 @@
 ﻿import { CalendarDays } from 'lucide-react'
+import heroBg from '../assets/MG_3894-2-1024x710.jpg'
 
 function Hero() {
   return (
     <section
       id="inicio"
       className="relative min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=1920')",
-      }}
+      style={{ backgroundImage: `url(${heroBg})` }}
     >
       <div className="absolute inset-0 bg-medical-blue/80" />
 

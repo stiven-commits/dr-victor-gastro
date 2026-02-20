@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react'
+﻿import { Star } from 'lucide-react'
 
 const testimonials = [
   {
@@ -25,7 +25,7 @@ const testimonials = [
 
 function Testimonials() {
   return (
-    <section className="bg-medical-blue py-16">
+    <section id="opiniones" className="bg-medical-blue py-16 scroll-mt-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-3xl font-bold text-white">Lo que dicen nuestros pacientes</h2>
 

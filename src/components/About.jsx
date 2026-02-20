@@ -1,4 +1,5 @@
 ﻿import { CheckCircle2 } from 'lucide-react'
+import aboutImg from '../assets/dr-victor-4.jpg';
 
 const highlights = [
   'Médico cirujano egresado de la Universidad Rómulo Gallegos.',
@@ -9,11 +10,11 @@ const highlights = [
 
 function About() {
   return (
-    <section id="nosotros" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <section id="nosotros" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 scroll-mt-20">
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
         <div className="mx-auto w-full max-w-sm rounded-[2rem] bg-white p-3 shadow-md ring-1 ring-slate-200/70">
           <img
-            src="https://via.placeholder.com/420x620"
+            src={aboutImg}
             alt="Dr. Victor en consulta"
             className="h-auto w-full rounded-[1.5rem] object-cover"
           />

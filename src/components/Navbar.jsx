@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
+import logoWhite from '../assets/logo-dr-victor-h-blanco-2.png';
+import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
 
 function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -10,7 +12,7 @@ function Navbar() {
     { label: 'Perfil del doctor', href: '/#nosotros' },
     { label: 'Servicios', href: '/#servicios' },
     { label: 'Opiniones', href: '/#opiniones' },
-    { label: 'Contacto', href: '/#contacto' },
+    { label: 'Contacto', href: '/#agendar' },
   ]
 
   useEffect(() => {
@@ -29,7 +31,6 @@ function Navbar() {
   const mobileMenuClass = hasScrolled
     ? 'border-slate-200 bg-white'
     : 'border-white/20 bg-medical-blue/95 backdrop-blur-sm'
-  const logoSubTextClass = hasScrolled ? 'text-slate-500' : 'text-white/80'
   const whatsappButtonClass = hasScrolled
     ? 'border-medical-blue/30 bg-medical-blue text-white'
     : 'border-white/50 bg-medical-blue text-white'
@@ -38,13 +39,11 @@ function Navbar() {
     <header className={`fixed top-0 left-0 z-50 w-full transition-colors duration-300 ${headerClass}`}>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="/#inicio" className="inline-flex items-center gap-2" aria-label="Dr. Victor">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-light-blue text-sm font-bold text-medical-blue">
-            DV
-          </div>
-          <div className="leading-tight">
-            <p className={`text-sm font-semibold ${navTextClass}`}>Dr. Victor</p>
-            <p className={`text-xs ${logoSubTextClass}`}>Logo placeholder</p>
-          </div>
+          <img 
+            src={hasScrolled ? logoBlue : logoWhite} 
+            alt="Logo Dr. Víctor Manrique" 
+            className="h-12 w-auto object-contain transition-all duration-300" 
+          />
         </a>
 
         <nav className="hidden items-center gap-6 md:flex">

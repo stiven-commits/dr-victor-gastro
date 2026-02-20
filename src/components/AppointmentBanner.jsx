@@ -1,6 +1,38 @@
-﻿import { MessageCircle } from 'lucide-react'
+import { useRef, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 function AppointmentBanner() {
+  const form = useRef();
+  const [status, setStatus] = useState('Enviar');
+
+  const sendEmail = (e) => {
+    e.preventDefault();
+    setStatus('Enviando...');
+
+    // ASEGÚRATE DE CAMBIAR ESTOS 3 VALORES POR LOS TUYOS
+    emailjs
+      .sendForm(
+        'service_nz37t1p',
+        'template_u85ofjo',
+        form.current,
+        '2FTM0PYR2R4a0Mwye'
+      )
+      .then(
+        (result) => {
+          console.log('Éxito:', result.text);
+          setStatus('¡Enviado con éxito!');
+          e.target.reset(); // Limpia los campos del formulario
+          setTimeout(() => setStatus('Enviar'), 3000); // Restaura el botón después de 3 seg
+        },
+        (error) => {
+          console.log('Error:', error.text);
+          setStatus('Error al enviar');
+          setTimeout(() => setStatus('Enviar'), 3000);
+        }
+      );
+  };
+
   return (
     <section id="agendar" className="bg-medical-blue py-20">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 lg:grid-cols-2">
@@ -40,35 +72,41 @@ function AppointmentBanner() {
           />
 
           <div className="relative z-10 rounded-lg bg-white p-8 shadow-2xl">
-            <form className="space-y-4">
+            <form ref={form} onSubmit={sendEmail} className="space-y-4">
               <input
                 type="text"
+                name="user_name"
+                required
                 placeholder="Su nombre"
                 className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-slate-700 outline-none transition focus:border-blue-400"
               />
               <input
                 type="email"
+                name="user_email"
+                required
                 placeholder="Su Email"
                 className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-slate-700 outline-none transition focus:border-blue-400"
               />
               <input
                 type="tel"
-                placeholder="Su número de teléfono"
+                name="user_phone"
+                required
+                placeholder="Su numero de telefono"
                 className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-slate-700 outline-none transition focus:border-blue-400"
               />
-
               <button
                 type="submit"
-                className="rounded-md bg-blue-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-600"
+                disabled={status === 'Enviando...'}
+                className="rounded-md bg-blue-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:bg-blue-300"
               >
-                Enviar
+                {status}
               </button>
             </form>
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }
 
-export default AppointmentBanner
+export default AppointmentBanner;

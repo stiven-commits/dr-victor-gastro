@@ -1,69 +1,69 @@
 ﻿import { Phone } from 'lucide-react'
+import img1 from '../assets/balon-150x150.jpg';
+import img2 from '../assets/endoscopia-150x150.jpg';
+import img3 from '../assets/dr-victor-150x150.jpg';
+import img4 from '../assets/enfermera-dr-victor-150x150.jpg';
+import img5 from '../assets/dr-victor-2-150x150.jpg';
+import img6 from '../assets/endoscopia-2-150x150.jpg';
+import img7 from '../assets/dr-victor-3-150x150.jpg';
+import img8 from '../assets/anestecia-150x150.jpg';
 
 const serviceCards = [
   {
     number: '01.',
     title: 'Balón Gástrico',
     description: 'Un método mínimamente invasivo que ayuda a controlar el peso de manera efectiva.',
-    image:
-      'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=900',
+    image: img1,
   },
   {
     number: '02.',
     title: 'Endoscopías Diagnósticas',
     description:
       'Realizamos gastroscopías y colonoscopías para diagnósticos precisos y personalizados.',
-    image:
-      'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&q=80&w=900',
+    image: img2,
   },
   {
     number: '03.',
     title: 'Endoscopía Bariátrica',
     description: 'Manejo especializado de cálculos biliares y lesiones de vías pancreáticas.',
-    image:
-      'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&q=80&w=900',
+    image: img3,
   },
   {
     number: '04.',
     title: 'Tratamientos de Vías Biliares',
     description:
       'Especializado en cálculos biliares y lesiones de vías pancreáticas y biliares.',
-    image:
-      'https://images.unsplash.com/photo-1666214280391-8ff5bd3c0bf0?auto=format&fit=crop&q=80&w=900',
+    image: img4,
   },
   {
     number: '05.',
     title: 'Endoscopía Terapéutica',
     description: 'Polipectomías, ligadura de várices esofágicas y dilataciones esofágicas.',
-    image:
-      'https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?auto=format&fit=crop&q=80&w=900',
+    image: img5,
   },
   {
     number: '06.',
     title: 'Extracción de Cuerpos Extraños',
     description: 'Procedimientos para retirar objetos ingeridos de manera segura y eficaz.',
-    image:
-      'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=900',
+    image: img6,
   },
   {
     number: '07.',
     title: 'Dilataciones con Balón',
     description: 'Tratamiento especializado para pacientes con estenosis esofágica por acalasia.',
-    image:
-      'https://images.unsplash.com/photo-1583912267550-7ebd40218b2c?auto=format&fit=crop&q=80&w=900',
+    image: img7,
   },
   {
     number: '08.',
     title: 'Colangiopancreatografía Retrógrada Endoscópica (CPRE)',
     description: 'Diagnóstico y tratamiento de condiciones biliares y pancreáticas.',
-    image:
-      'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=900',
+    image: img8,
   },
 ]
 
 function AdvancedServices() {
   return (
-    <section className="bg-white py-20">
+    <section id="servicios" className="bg-white py-20 scroll-mt-20">
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-1 gap-0 md:grid-cols-2 lg:grid-cols-4">
           <article className="relative overflow-hidden bg-white p-10 lg:col-span-2">
@@ -101,9 +101,9 @@ function AdvancedServices() {
           ))}
 
           <article className="flex flex-col justify-center bg-blue-500 p-10 text-white lg:col-span-2 lg:rounded-br-[4rem]">
-            <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider text-white/90">
+            <p className="inline-flex items-center gap-2 text-md font-semibold tracking-wider text-white/90">
               <Phone size={15} />
-              <span>MÁS INFORMACIÓN Y AGENDAR TU CITA</span>
+              <h3>MÁS INFORMACIÓN Y AGENDAR TU CITA</h3>
             </p>
             <p className="mt-4 text-3xl font-extrabold">04127369667</p>
           </article>

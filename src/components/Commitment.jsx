@@ -1,4 +1,7 @@
-﻿function Commitment() {
+﻿import commitMainImg from '../assets/MG_3826-e1738020495374.jpg';
+import commitSubImg from '../assets/relleno-balon.jpg';
+
+function Commitment() {
   return (
     <section className="bg-white py-20">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 lg:grid-cols-2">
@@ -13,13 +16,13 @@
           />
 
           <img
-            src="https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=500"
+            src={commitMainImg}
             alt="Atención médica especializada"
             className="relative z-10 h-[420px] w-[80%] rounded-2xl object-cover shadow-lg"
           />
 
           <img
-            src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400"
+            src={commitSubImg}
             alt="Procedimiento médico digestivo"
             className="absolute -right-4 -bottom-10 w-2/3 rounded-2xl border-8 border-white object-cover shadow-xl"
           />

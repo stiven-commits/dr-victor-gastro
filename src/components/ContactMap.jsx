@@ -2,7 +2,7 @@ import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 
 function ContactMap() {
   return (
-    <section id="contacto" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <section id="contacto" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 scroll-mt-20">
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">Como llegar al consultorio</h2>
