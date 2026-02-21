@@ -57,7 +57,10 @@ export default function Dashboard() {
   const fetchLeads = async () => {
     try {
       const response = await fetch(`${N8N_GET_URL}?t=${new Date().getTime()}`, {
-        headers: { 'Authorization': 'Bearer v2ew5w8mAq3' }
+        method: 'GET',
+        headers: { 
+          'Authorization': 'Bearer v2ew5w8mAq3'
+        }
       });
       const data = await response.json();
       setLeads(Array.isArray(data) ? data : data[0] || [data] || []);
@@ -68,7 +71,12 @@ export default function Dashboard() {
   const fetchAuditLogs = async () => {
     setLoadingAudit(true);
     try {
-      const response = await fetch(`${N8N_AUDIT_URL}?t=${new Date().getTime()}`);
+      const response = await fetch(`${N8N_AUDIT_URL}?t=${new Date().getTime()}`, {
+        method: 'GET',
+        headers: { 
+          'Authorization': 'Bearer v2ew5w8mAq3'
+        }
+      });
       const data = await response.json();
       setAuditLogs(Array.isArray(data) ? data : data[0] || []);
     } catch (error) { setAuditLogs([]); }
@@ -90,7 +98,14 @@ export default function Dashboard() {
     
     setLeads(leads.map(lead => lead.id === id ? payload : lead));
     try {
-      await fetch(N8N_POST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      await fetch(N8N_POST_URL, { 
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer v2ew5w8mAq3'
+        }, 
+        body: JSON.stringify(payload) 
+      });
     } catch (error) { console.error(error); }
   };
 
