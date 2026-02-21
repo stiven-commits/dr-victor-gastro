@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, LogOut, HeartPulse, Database, Loader2, Search, Filter, X } from 'lucide-react';
+import { Users, LogOut, HeartPulse, Database, Loader2, Search, Filter, X, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TREATMENT_OPTIONS = [
   "Manga Gástrica",
@@ -13,7 +13,6 @@ const TREATMENT_OPTIONS = [
   "Retiro de balón"
 ];
 
-// Tratamientos que convierten al lead en paciente automáticamente
 const MEDICAL_TREATMENTS = [
   "Manga Gástrica", "Balón Allurion", "Balón Ovalsiluethe", "Método Tore", "CPRE", "Retiro de balón"
 ];
@@ -21,6 +20,17 @@ const MEDICAL_TREATMENTS = [
 const getTreatmentsArray = (treatmentStr) => {
   if (!treatmentStr || typeof treatmentStr !== 'string' || treatmentStr === 'Por definir') return [];
   return treatmentStr.split(',').map(t => t.trim()).filter(Boolean);
+};
+
+const parseNotes = (notesStr) => {
+  if (!notesStr) return [];
+  try {
+    const parsed = JSON.parse(notesStr);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    return [{ id: 'old-note', date: new Date().toISOString(), content: notesStr }];
+  }
+  return [];
 };
 
 export default function Dashboard() {
@@ -39,6 +49,12 @@ export default function Dashboard() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState(null);
   const [editFormData, setEditFormData] = useState({ name: '', phone: '', treatments: [] });
+
+  // Estados del Modal de Notas
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [activeNotesLead, setActiveNotesLead] = useState(null);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [notesPage, setNotesPage] = useState(1); // ✨ NUEVO: Estado para la paginación
 
   const N8N_GET_URL = 'https://victorbot.sosmarketing.agency/webhook/api-leads';
   const N8N_POST_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
@@ -124,14 +140,9 @@ export default function Dashboard() {
     setModalOpen(false);
   };
 
-  // --- LÓGICA MODAL EDITAR (DOBLE CLIC) ---
   const handleRowDoubleClick = (lead) => {
     setLeadToEdit(lead);
-    
-    // ✨ LA SOLUCIÓN: Filtramos los tratamientos viejos del CSV. 
-    // Solo cargamos en la edición los que coincidan con nuestra lista de casillas.
     const validTreatments = getTreatmentsArray(lead.treatment).filter(t => TREATMENT_OPTIONS.includes(t));
-    
     setEditFormData({
       name: lead.name || '',
       phone: lead.phone || '',
@@ -153,13 +164,30 @@ export default function Dashboard() {
       setMedicalData({ weight: '', height: '' });
       setTimeout(() => setModalOpen(true), 300); 
     } else {
-      updateLead(leadToEdit.id, {
-        name: editFormData.name,
-        phone: editFormData.phone,
-        treatment: treatmentString
-      });
+      updateLead(leadToEdit.id, { name: editFormData.name, phone: editFormData.phone, treatment: treatmentString });
       setEditModalOpen(false);
     }
+  };
+
+  const handleSaveNewNote = (e) => {
+    e.preventDefault();
+    if (!newNoteContent.trim()) return;
+
+    const currentNotes = parseNotes(activeNotesLead.notes);
+    const newNote = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      content: newNoteContent.trim()
+    };
+    
+    const updatedNotesArray = [...currentNotes, newNote];
+    const updatedNotesString = JSON.stringify(updatedNotesArray);
+
+    updateLead(activeNotesLead.id, { notes: updatedNotesString });
+    
+    setActiveNotesLead({ ...activeNotesLead, notes: updatedNotesString });
+    setNewNoteContent('');
+    setNotesPage(1); // Volvemos a la página 1 para ver la nota recién agregada
   };
 
   const handleLogout = () => {
@@ -184,6 +212,19 @@ export default function Dashboard() {
   const patientsList = filteredLeads.filter(l => l.is_patient);
   const allTreatmentsArray = leads.map(l => l.treatment).filter(Boolean).join(',').split(',');
   const uniqueTreatments = ['Todos', ...new Set(allTreatmentsArray.map(t => t.trim()).filter(t => t && t !== 'Por definir'))];
+
+  // ✨ LÓGICA DE PAGINACIÓN DE NOTAS
+  const NOTES_PER_PAGE = 4;
+  let sortedNotes = [];
+  let paginatedNotes = [];
+  let totalPages = 1;
+
+  if (activeNotesLead) {
+    // Ordenamos de más reciente a más antigua
+    sortedNotes = parseNotes(activeNotesLead.notes).sort((a, b) => new Date(b.date) - new Date(a.date));
+    totalPages = Math.ceil(sortedNotes.length / NOTES_PER_PAGE) || 1;
+    paginatedNotes = sortedNotes.slice((notesPage - 1) * NOTES_PER_PAGE, notesPage * NOTES_PER_PAGE);
+  }
 
   return (
     <div className="flex min-h-screen font-sans bg-gray-50">
@@ -259,7 +300,7 @@ export default function Dashboard() {
                       <th className="px-6 py-4 font-semibold">Datos del Contacto</th>
                       <th className="px-6 py-4 font-semibold">Tratamientos</th>
                       <th className="px-6 py-4 font-semibold">Estatus</th>
-                      <th className="px-6 py-4 font-semibold">Notas</th>
+                      <th className="px-6 py-4 font-semibold text-center">Notas</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -291,12 +332,14 @@ export default function Dashboard() {
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-4 align-top">
-                          <textarea 
-                            defaultValue={lead.notes || ''} onClick={(e) => e.stopPropagation()}
-                            onBlur={(e) => { if (e.target.value !== (lead.notes || '')) updateLead(lead.id, { notes: e.target.value }); }} 
-                            placeholder="Añadir nota..." className="w-full min-w-[200px] text-xs p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-[#0056b3] resize-y" rows="3" 
-                          />
+                        <td className="px-6 py-4 align-top text-center">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#0056b3] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
+                          >
+                            <FileText size={16} /> 
+                            Ver notas ({parseNotes(lead.notes).length})
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -353,7 +396,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* --- MODAL MARCAR PACIENTE --- */}
+      {/* --- MODALES EXISTENTES (Paciente y Editar) --- */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
@@ -373,7 +416,6 @@ export default function Dashboard() {
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Estatura (metros)</label>
                 <input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0056b3] outline-none font-mono tracking-wider" placeholder="Ej: 1.75" maxLength={4} />
-                <p className="mt-1 text-xs text-slate-400">Escribe los números de corrido (ej. 175) y se aplicará el punto.</p>
               </div>
               <div className="pt-4 border-t border-gray-100 flex gap-3 justify-end">
                 <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Solo Guardar Edición</button>
@@ -384,7 +426,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* --- MODAL EDITAR LEAD (DOBLE CLIC) --- */}
       {editModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -393,7 +434,6 @@ export default function Dashboard() {
               <button onClick={() => setEditModalOpen(false)} className="hover:bg-white/20 p-1 rounded-md transition"><X size={20}/></button>
             </div>
             <form onSubmit={handleSaveEdit} className="p-6 space-y-5">
-              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre Completo</label>
@@ -404,16 +444,12 @@ export default function Dashboard() {
                   <input type="text" value={editFormData.phone || ''} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-slate-800 outline-none" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-3">Tratamientos de Interés</label>
                 <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                   {TREATMENT_OPTIONS.map(treatment => (
                     <label key={treatment} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300 text-[#0056b3] focus:ring-[#0056b3]"
-                        checked={editFormData.treatments.includes(treatment)}
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#0056b3] focus:ring-[#0056b3]" checked={editFormData.treatments.includes(treatment)}
                         onChange={(e) => {
                           if (e.target.checked) setEditFormData({...editFormData, treatments: [...editFormData.treatments, treatment]});
                           else setEditFormData({...editFormData, treatments: editFormData.treatments.filter(t => t !== treatment)});
@@ -424,12 +460,99 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-
               <div className="pt-4 border-t border-gray-100 flex gap-3 justify-end">
                 <button type="button" onClick={() => setEditModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
                 <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-sm">Guardar Cambios</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✨ MODAL DE HISTORIAL DE NOTAS (CON PAGINACIÓN) */}
+      {notesModalOpen && activeNotesLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+            
+            <div className="flex justify-between items-center bg-slate-50 border-b border-gray-100 p-4">
+              <div>
+                <h3 className="font-bold text-lg text-slate-800">Historial de Notas</h3>
+                <p className="text-sm font-medium text-slate-500">{activeNotesLead.name}</p>
+              </div>
+              <button onClick={() => setNotesModalOpen(false)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><X size={20}/></button>
+            </div>
+
+            <div className="px-6 pt-4 pb-2 border-b border-gray-50 flex flex-wrap gap-1">
+              {getTreatmentsArray(activeNotesLead.treatment).map(t => (
+                <span key={t} className="px-2 py-1 text-[10px] font-semibold rounded-md bg-blue-50 text-[#0056b3] border border-blue-100">{t}</span>
+              ))}
+              {getTreatmentsArray(activeNotesLead.treatment).length === 0 && (
+                <span className="text-xs text-slate-400 italic">Sin tratamiento asignado</span>
+              )}
+            </div>
+
+            {/* Listado de notas (Máx 4 por vista) */}
+            <div className="p-6 flex-1 space-y-4 bg-slate-50/50 h-[380px] overflow-y-auto">
+              {paginatedNotes.length === 0 ? (
+                <div className="text-center text-sm text-slate-400 py-16 flex flex-col items-center">
+                  <FileText className="w-12 h-12 mb-3 text-slate-200" />
+                  Aún no hay notas para este paciente. <br/>Escribe la primera abajo.
+                </div>
+              ) : (
+                paginatedNotes.map(note => (
+                  <div key={note.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm relative">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold text-[#0056b3] bg-blue-50 px-2 py-1 rounded">
+                        {new Date(note.date).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Controles de Paginación */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center px-6 py-3 bg-white border-y border-gray-100">
+                <button 
+                  disabled={notesPage === 1}
+                  onClick={() => setNotesPage(prev => prev - 1)}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 p-1.5 rounded transition"
+                >
+                  <ChevronLeft size={16} /> Más recientes
+                </button>
+                <span className="text-xs font-medium text-slate-500">
+                  Página {notesPage} de {totalPages}
+                </span>
+                <button 
+                  disabled={notesPage === totalPages}
+                  onClick={() => setNotesPage(prev => prev + 1)}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 p-1.5 rounded transition"
+                >
+                  Más antiguas <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* Caja de nueva nota */}
+            <form onSubmit={handleSaveNewNote} className="p-5 bg-white">
+              <label className="block text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Añadir nueva nota</label>
+              <textarea 
+                required
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                placeholder="Escribe el progreso, observaciones o recordatorios..." 
+                className="w-full p-3 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#0056b3] outline-none resize-none mb-3" 
+                rows="3" 
+              />
+              <div className="flex justify-end">
+                <button type="submit" className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0056b3] hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
+                  Guardar Nota
+                </button>
+              </div>
+            </form>
+
           </div>
         </div>
       )}
