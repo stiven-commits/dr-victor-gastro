@@ -21,3 +21,14 @@ export const parseNotes = (notesStr) => {
   }
   return [];
 };
+
+export const parseHistory = (historyStr) => {
+  if (!historyStr) return [];
+  try {
+    const parsed = JSON.parse(historyStr);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    return [];
+  }
+  return [];
+};
