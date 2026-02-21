@@ -1,48 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, LogOut, HeartPulse, Database, Loader2, Search, Filter, X, FileText, ChevronLeft, ChevronRight, ShieldAlert, CircleDot } from 'lucide-react';
-import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
+import { Database, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const TREATMENT_OPTIONS = [
-  "Manga Gástrica", "Balón Allurion", "Balón Ovalsiluethe", "Método Tore", "CPRE", "Consulta presencial", "Consulta online", "Retiro de balón"
-];
-const MEDICAL_TREATMENTS = [
-  "Manga Gástrica", "Balón Allurion", "Balón Ovalsiluethe", "Método Tore", "CPRE", "Retiro de balón"
-];
+// Importar Componentes Modulares
+import Sidebar from './components/Sidebar';
+import MetricsCards from './components/MetricsCards';
+import Filters from './components/Filters';
+import { PatientModal, EditLeadModal, NotesModal } from './components/Modals';
 
-const getTreatmentsArray = (treatmentStr) => {
-  if (!treatmentStr || typeof treatmentStr !== 'string' || treatmentStr === 'Por definir') return [];
-  return treatmentStr.split(',').map(t => t.trim()).filter(Boolean);
-};
-
-const parseNotes = (notesStr) => {
-  if (!notesStr) return [];
-  try {
-    const parsed = JSON.parse(notesStr);
-    if (Array.isArray(parsed)) return parsed;
-  } catch (e) {
-    return [{ id: 'old-note', date: new Date().toISOString(), content: notesStr }];
-  }
-  return [];
-};
+// Importar Utilidades
+import { TREATMENT_OPTIONS, MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes } from './utils/helpers';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  
+  // Estados Generales
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const currentUserStr = localStorage.getItem('currentUser');
-  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : { name: 'Usuario', role: 'user', username: 'desconocido' };
-
   const [activeTab, setActiveTab] = useState('leads');
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  // Estados de Filtros y Paginación
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTreatment, setFilterTreatment] = useState('Todos');
-  const [filterStatus, setFilterStatus] = useState('Todos'); // ✨ NUEVO: Estado del filtro estatus
+  const [filterStatus, setFilterStatus] = useState('Todos'); 
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Estados de Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
-  const [medicalData, setMedicalData] = useState({ weight: '', height: '' });
+  const [medicalData, setMedicalData] = useState({ weight: '', height: '', cedula: '', edad: '' });
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState(null);
@@ -53,29 +41,26 @@ export default function Dashboard() {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [notesPage, setNotesPage] = useState(1); 
 
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [loadingAudit, setLoadingAudit] = useState(false);
+  // Autenticación
+  const currentUserStr = localStorage.getItem('currentUser');
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : { name: 'Usuario', role: 'user', username: 'desconocido' };
 
   const N8N_GET_URL = 'https://victorbot.sosmarketing.agency/webhook/api-leads';
   const N8N_POST_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
   const N8N_AUDIT_URL = 'https://victorbot.sosmarketing.agency/webhook/api-audit-logs'; 
 
+  // Efectos (Carga de datos)
   useEffect(() => { fetchLeads(); }, []);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab]);
-  useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus]); // ✨ Reset paginación al filtrar
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus]); 
 
   const fetchLeads = async () => {
     try {
       const response = await fetch(`${N8N_GET_URL}?t=${new Date().getTime()}`);
       const data = await response.json();
-      if (Array.isArray(data)) setLeads(data);
-      else if (data && data[0] && Array.isArray(data[0])) setLeads(data[0]); 
-      else setLeads([]);
+      setLeads(Array.isArray(data) ? data : data[0] || [data] || []);
       setLoading(false);
-    } catch (error) {
-      setLeads([]);
-      setLoading(false);
-    }
+    } catch (error) { setLeads([]); setLoading(false); }
   };
 
   const fetchAuditLogs = async () => {
@@ -88,19 +73,27 @@ export default function Dashboard() {
     setLoadingAudit(false);
   };
 
+  // Acciones en Base de Datos
   const updateLead = async (id, updatedFields) => {
     const currentLead = leads.find(l => l.id === id);
     if (!currentLead) return;
-    const payload = { ...currentLead, ...updatedFields, updated_by: currentUser.username };
+    
+    const payload = { 
+      ...currentLead, 
+      ...updatedFields, 
+      cedula: updatedFields.cedula !== undefined ? updatedFields.cedula : currentLead.cedula,
+      edad: updatedFields.edad !== undefined ? updatedFields.edad : currentLead.edad,
+      updated_by: currentUser.username 
+    };
+    
     setLeads(leads.map(lead => lead.id === id ? payload : lead));
     try {
-      await fetch(N8N_POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      await fetch(N8N_POST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     } catch (error) { console.error(error); }
   };
+
+  // Manejadores de Eventos (Handlers)
+  const handleLogout = () => { localStorage.clear(); navigate('/login'); };
 
   const handleHeightChange = (e) => {
     let val = e.target.value.replace(/[^0-9]/g, '');
@@ -110,8 +103,13 @@ export default function Dashboard() {
 
   const handlePatientClick = (e, lead) => {
     e.stopPropagation(); 
-    if (lead.is_patient) updateLead(lead.id, { is_patient: false, initial_weight: null, height: null, bmi: null, final_weight: null });
-    else { setSelectedLeadId(lead.id); setMedicalData({ weight: '', height: '' }); setModalOpen(true); }
+    if (lead.is_patient) {
+      updateLead(lead.id, { is_patient: false, initial_weight: null, height: null, bmi: null, final_weight: null, cedula: null, edad: null });
+    } else { 
+      setSelectedLeadId(lead.id); 
+      setMedicalData({ weight: '', height: '', cedula: lead.cedula || '', edad: lead.edad || '' }); 
+      setModalOpen(true); 
+    }
   };
 
   const handleSavePatient = (e) => {
@@ -119,7 +117,10 @@ export default function Dashboard() {
     const w = parseFloat(medicalData.weight);
     const h = parseFloat(medicalData.height);
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
-    updateLead(selectedLeadId, { is_patient: true, initial_weight: w || null, height: h || null, bmi: bmiValue });
+    updateLead(selectedLeadId, { 
+      is_patient: true, initial_weight: w || null, height: h || null, bmi: bmiValue,
+      cedula: medicalData.cedula || null, edad: medicalData.edad ? parseInt(medicalData.edad) : null
+    });
     setModalOpen(false);
   };
 
@@ -136,7 +137,8 @@ export default function Dashboard() {
     if (editFormData.treatments.some(t => MEDICAL_TREATMENTS.includes(t)) && !leadToEdit.is_patient) {
       setEditModalOpen(false);
       updateLead(leadToEdit.id, { name: editFormData.name, phone: editFormData.phone, treatment: treatmentString });
-      setSelectedLeadId(leadToEdit.id); setMedicalData({ weight: '', height: '' });
+      setSelectedLeadId(leadToEdit.id); 
+      setMedicalData({ weight: '', height: '', cedula: leadToEdit.cedula || '', edad: leadToEdit.edad || '' });
       setTimeout(() => setModalOpen(true), 300); 
     } else {
       updateLead(leadToEdit.id, { name: editFormData.name, phone: editFormData.phone, treatment: treatmentString });
@@ -155,21 +157,17 @@ export default function Dashboard() {
     setNewNoteContent(''); setNotesPage(1); 
   };
 
-  // ✨ LÓGICA DE FILTRADO AVANZADO (TRATAMIENTO + STATUS)
+  // Lógica Matemática de Listas y Paginación
   const filteredLeads = leads.filter((lead) => {
-    // Filtro Tratamiento
     if (filterTreatment !== 'Todos' && lead.treatment && !lead.treatment.includes(filterTreatment)) return false;
-    
-    // Filtro Status
     if (filterStatus === 'Por Contactar' && (lead.is_contacted || lead.is_patient)) return false;
     if (filterStatus === 'Contactados' && !lead.is_contacted) return false;
     if (filterStatus === 'Solo Leads' && lead.is_patient) return false;
     if (filterStatus === 'Solo Pacientes' && !lead.is_patient) return false;
 
-    // Filtro Búsqueda
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      return lead.name?.toLowerCase().includes(term) || lead.phone?.toLowerCase().includes(term) || lead.username?.toLowerCase().includes(term) || lead.treatment?.toLowerCase().includes(term);
+      return lead.name?.toLowerCase().includes(term) || lead.phone?.toLowerCase().includes(term) || lead.username?.toLowerCase().includes(term) || lead.treatment?.toLowerCase().includes(term) || lead.cedula?.toLowerCase().includes(term);
     }
     return true; 
   });
@@ -177,7 +175,6 @@ export default function Dashboard() {
   const patientsList = filteredLeads.filter(l => l.is_patient);
   const uncontactedCount = leads.filter(l => !l.is_patient && !l.is_contacted).length;
 
-  // Paginación principal (7 por página)
   const ITEMS_PER_PAGE = 7;
   const totalItems = activeTab === 'leads' ? filteredLeads.length : patientsList.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
@@ -187,69 +184,34 @@ export default function Dashboard() {
   const allTreatmentsArray = leads.map(l => l.treatment).filter(Boolean).join(',').split(',');
   const uniqueTreatments = ['Todos', ...new Set(allTreatmentsArray.map(t => t.trim()).filter(t => t && t !== 'Por definir'))];
 
+  // Paginación del modal de notas
+  let sortedNotes = [];
+  let paginatedNotesModal = [];
+  let totalNotesPages = 1;
+  if (activeNotesLead) {
+    sortedNotes = parseNotes(activeNotesLead.notes).sort((a, b) => new Date(b.date) - new Date(a.date));
+    totalNotesPages = Math.ceil(sortedNotes.length / 4) || 1;
+    paginatedNotesModal = sortedNotes.slice((notesPage - 1) * 4, notesPage * 4);
+  }
+
+  // INTERFAZ DE USUARIO PRINCIPAL
   return (
     <div className="flex min-h-screen font-sans bg-gray-50">
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-6 border-b border-gray-100 flex flex-col items-start">
-          <img src={logoBlue} alt="Logo Dr. Víctor" className="h-12 w-auto object-contain mb-3" />
-          <p className="mt-1 text-sm font-semibold text-slate-500">Hola, {currentUser.name}</p>
-        </div>
-        <nav className="p-4 space-y-2 flex-1">
-          <button onClick={() => setActiveTab('leads')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'leads' ? 'bg-[#0056b3] text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
-            <Users className="w-5 h-5" /> Leads Generales
-          </button>
-          <button onClick={() => setActiveTab('patients')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'patients' ? 'bg-[#0056b3] text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
-            <HeartPulse className="w-5 h-5" /> Pacientes Clínicos
-          </button>
-          {currentUser.role === 'superadmin' && (
-            <button onClick={() => setActiveTab('audit')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'audit' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>
-              <ShieldAlert className="w-5 h-5" /> Registro Actividad
-            </button>
-          )}
-        </nav>
-        <div className="p-4 border-t border-gray-100">
-          <button onClick={() => { localStorage.clear(); navigate('/login'); }} className="flex items-center w-full gap-3 px-4 py-3 text-red-500 transition rounded-lg hover:bg-red-50"><LogOut className="w-5 h-5" /> Cerrar Sesión</button>
-        </div>
-      </aside>
+      
+      <Sidebar currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} />
 
       <main className="flex-1 p-8">
         <header className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">{activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : 'Auditoría del Sistema'}</h1>
+          <h1 className="text-3xl font-bold text-slate-800">
+            {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : 'Auditoría del Sistema'}
+          </h1>
         </header>
 
         {activeTab !== 'audit' && (
-          <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
-            <div className="p-6 bg-white border-l-4 shadow-sm rounded-2xl border-[#0056b3]"><p className="text-sm font-medium text-slate-500">Total Leads</p><p className="mt-2 text-3xl font-bold text-slate-800">{loading ? '-' : leads.length}</p></div>
-            <div className="p-6 bg-white border-l-4 shadow-sm rounded-2xl border-orange-500"><p className="text-sm font-medium text-slate-500">Por Contactar</p><p className="mt-2 text-3xl font-bold text-slate-800">{loading ? '-' : uncontactedCount}</p></div>
-            <div className="p-6 bg-white border-l-4 shadow-sm rounded-2xl border-purple-500"><p className="text-sm font-medium text-slate-500">Pacientes Activos</p><p className="mt-2 text-3xl font-bold text-slate-800">{loading ? '-' : leads.filter(l => l.is_patient).length}</p></div>
-          </div>
-        )}
-
-        {activeTab !== 'audit' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input type="text" placeholder="Buscar por nombre, teléfono..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0056b3]" />
-            </div>
-            {/* ✨ FILTRO STATUS */}
-            <div className="relative">
-              <CircleDot className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full pl-10 pr-4 py-3 appearance-none rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
-                <option value="Todos">Estatus: Todos</option>
-                <option value="Por Contactar">🔔 Por Contactar</option>
-                <option value="Contactados">✅ Contactados</option>
-                <option value="Solo Leads">🎯 Solo Leads</option>
-                <option value="Solo Pacientes">⭐ Solo Pacientes</option>
-              </select>
-            </div>
-            {/* FILTRO TRATAMIENTO */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <select value={filterTreatment} onChange={(e) => setFilterTreatment(e.target.value)} className="w-full pl-10 pr-4 py-3 appearance-none rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
-                {uniqueTreatments.map(t => <option key={t} value={t}>{t === 'Todos' ? 'Tratamiento: Todos' : t}</option>)}
-              </select>
-            </div>
-          </div>
+          <>
+            <MetricsCards loading={loading} totalLeads={leads.length} uncontactedCount={uncontactedCount} activePatients={leads.filter(l => l.is_patient).length} />
+            <Filters searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterTreatment={filterTreatment} setFilterTreatment={setFilterTreatment} uniqueTreatments={uniqueTreatments} />
+          </>
         )}
 
         <div className="overflow-hidden bg-white border border-gray-100 shadow-sm rounded-2xl flex flex-col">
@@ -257,6 +219,8 @@ export default function Dashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-slate-400"><Loader2 className="w-8 h-8 mb-4 animate-spin text-[#0056b3]" /><p>Cargando datos...</p></div>
           ) : (
             <div className="overflow-x-auto">
+              
+              {/* TABLA DE AUDITORÍA */}
               {activeTab === 'audit' ? (
                 <div>
                   <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50"><h3 className="font-bold text-slate-700">Auditoría</h3><button onClick={fetchAuditLogs} className="text-xs text-slate-500 hover:underline">Actualizar</button></div>
@@ -266,6 +230,8 @@ export default function Dashboard() {
                   </table>
                 </div>
               ) : (
+                
+                // TABLA DE LEADS / PACIENTES
                 <div className="flex flex-col">
                   <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">💡 Doble clic para editar.</p>
                   <table className="w-full text-sm text-left min-w-[1000px]">
@@ -284,18 +250,11 @@ export default function Dashboard() {
                           {activeTab === 'leads' ? (
                             <>
                               <td className="px-6 py-4 text-xs text-slate-500">{new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
-                              <td className="px-6 py-4"><div className="font-bold">{lead.name}</div><div className="text-xs font-mono text-slate-400">{lead.phone}{lead.username && (
-                                <a 
-                                href={`https://instagram.com/${lead.username}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                onClick={(e) => e.stopPropagation()} 
-                                className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5"
-                                >
-                                @{lead.username}
-                                </a>
-                                )}</div>
-                            </td>
+                              <td className="px-6 py-4">
+                                <div className="font-bold">{lead.name}</div>
+                                <div className="text-xs font-mono text-slate-400">{lead.phone}</div>
+                                {lead.username && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-0.5">@{lead.username}</a>}
+                              </td>
                               <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div></td>
                               <td className="px-6 py-4"><div className="flex flex-col gap-1">
                                 <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-2 py-1 text-[10px] font-bold rounded border ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
@@ -305,7 +264,16 @@ export default function Dashboard() {
                             </>
                           ) : (
                             <>
-                              <td className="px-6 py-4"><div className="font-bold">{lead.name}</div><div className="text-xs text-slate-400">{lead.phone}</div></td>
+                              <td className="px-6 py-4">
+                                <div className="font-bold">{lead.name}</div>
+                                <div className="text-xs text-slate-400">{lead.phone}</div>
+                                {(lead.cedula || lead.edad) && (
+                                  <div className="mt-1 flex gap-2 text-[10px] font-semibold text-slate-400">
+                                    {lead.cedula && <span className="bg-slate-100 px-1.5 py-0.5 rounded">C.I: {lead.cedula}</span>}
+                                    {lead.edad && <span className="bg-slate-100 px-1.5 py-0.5 rounded">{lead.edad} años</span>}
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">{t}</span>)}</div></td>
                               <td className="px-6 py-4 font-mono">{lead.initial_weight || '-'} kg</td>
                               <td className="px-6 py-4 font-bold text-purple-700">{lead.bmi || '-'}</td>
@@ -321,6 +289,7 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* CONTROLES DE PAGINACIÓN TABLAS */}
           {activeTab !== 'audit' && totalPages > 1 && (
             <div className="flex justify-between items-center px-6 py-4 bg-white border-t border-gray-100">
               <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-3 py-2 rounded-lg transition"><ChevronLeft size={18} /></button>
@@ -331,53 +300,26 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* MODALES IGUALES PERO ACTUALIZADOS */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white"><h3 className="font-bold">Datos Médicos</h3><button onClick={() => setModalOpen(false)}><X size={20}/></button></div>
-            <form onSubmit={handleSavePatient} className="p-6 space-y-4">
-              <div><label className="block text-sm font-semibold mb-1">Peso Inicial (kg)</label><input type="number" step="0.01" required value={medicalData.weight} onChange={(e) => setMedicalData({...medicalData, weight: e.target.value})} className="w-full p-2.5 border rounded-lg" /></div>
-              <div><label className="block text-sm font-semibold mb-1">Estatura (metros)</label><input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-2.5 border rounded-lg" placeholder="1.75" maxLength={4} /></div>
-              <button type="submit" className="w-full bg-green-500 text-white py-2.5 rounded-xl font-bold hover:bg-green-600 transition">Confirmar como Paciente</button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* RENDERIZADO DE MODALES */}
+      <PatientModal 
+        isOpen={modalOpen} onClose={() => setModalOpen(false)} 
+        medicalData={medicalData} setMedicalData={setMedicalData} 
+        handleHeightChange={handleHeightChange} handleSavePatient={handleSavePatient} 
+        leadName={leads.find(l => l.id === selectedLeadId)?.name} 
+      />
 
-      {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="flex justify-between items-center bg-slate-800 p-4 text-white"><h3 className="font-bold">Editar Lead</h3><button onClick={() => setEditModalOpen(false)}><X size={20}/></button></div>
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-semibold mb-1">Nombre</label><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
-                <div><label className="block text-sm font-semibold mb-1">Teléfono</label><input type="text" value={editFormData.phone} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className="w-full p-2 border rounded-lg" /></div>
-              </div>
-              <div><label className="block text-sm font-semibold mb-2">Tratamientos</label><div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border">{TREATMENT_OPTIONS.map(t => (<label key={t} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={editFormData.treatments.includes(t)} onChange={(e) => e.target.checked ? setEditFormData({...editFormData, treatments: [...editFormData.treatments, t]}) : setEditFormData({...editFormData, treatments: editFormData.treatments.filter(item => item !== t)})} /> {t}</label>))}</div></div>
-              <button type="submit" className="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold">Guardar Cambios</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditLeadModal 
+        isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} 
+        editFormData={editFormData} setEditFormData={setEditFormData} handleSaveEdit={handleSaveEdit} 
+      />
 
-      {notesModalOpen && activeNotesLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[600px]">
-            <div className="p-4 bg-slate-50 border-b flex justify-between"><div><h3 className="font-bold">Notas Históricas</h3><p className="text-xs text-slate-500">{activeNotesLead.name}</p></div><button onClick={() => setNotesModalOpen(false)}><X size={20}/></button></div>
-            <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-slate-100/50">
-              {paginatedNotesModal.length === 0 ? <div className="text-center text-slate-400 py-20">Sin notas registradas.</div> : paginatedNotesModal.map(note => (
-                <div key={note.id} className="bg-white p-3 rounded-xl border shadow-sm">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400 border-b pb-1 mb-2"><span>{new Date(note.date).toLocaleString()}</span><span>Por: {note.author}</span></div>
-                  <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                </div>
-              ))}
-            </div>
-            {totalNotesPages > 1 && <div className="p-2 border-t flex justify-between"><button disabled={notesPage === 1} onClick={() => setNotesPage(p => p-1)}><ChevronLeft size={16}/></button><span className="text-xs">Pág {notesPage}</span><button disabled={notesPage === totalNotesPages} onClick={() => setNotesPage(p => p+1)}><ChevronRight size={16}/></button></div>}
-            <form onSubmit={handleSaveNewNote} className="p-4 border-t"><textarea required value={newNoteContent} onChange={(e) => setNewNoteContent(e.target.value)} placeholder="Nueva nota..." className="w-full p-2 border rounded-lg text-sm mb-2" rows="2" /><div className="flex justify-end"><button type="submit" className="bg-[#0056b3] text-white px-4 py-1.5 rounded-lg text-sm font-bold">Guardar Nota</button></div></form>
-          </div>
-        </div>
-      )}
+      <NotesModal 
+        isOpen={notesModalOpen} onClose={() => setNotesModalOpen(false)} activeNotesLead={activeNotesLead} 
+        paginatedNotesModal={paginatedNotesModal} totalNotesPages={totalNotesPages} notesPage={notesPage} 
+        setNotesPage={setNotesPage} newNoteContent={newNoteContent} setNewNoteContent={setNewNoteContent} 
+        handleSaveNewNote={handleSaveNewNote} 
+      />
+
     </div>
   );
 }
