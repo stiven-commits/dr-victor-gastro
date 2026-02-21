@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Database, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
@@ -56,7 +56,9 @@ export default function Dashboard() {
 
   const fetchLeads = async () => {
     try {
-      const response = await fetch(`${N8N_GET_URL}?t=${new Date().getTime()}`);
+      const response = await fetch(`${N8N_GET_URL}?t=${new Date().getTime()}`, {
+        headers: { 'Authorization': 'Bearer v2ew5w8mAq3' }
+      });
       const data = await response.json();
       setLeads(Array.isArray(data) ? data : data[0] || [data] || []);
       setLoading(false);
@@ -220,7 +222,7 @@ export default function Dashboard() {
           ) : (
             <div className="overflow-x-auto">
               
-              {/* TABLA DE AUDITORÍA */}
+              {/* --- TABLA DE AUDITORÍA --- */}
               {activeTab === 'audit' ? (
                 <div>
                   <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50"><h3 className="font-bold text-slate-700">Auditoría</h3><button onClick={fetchAuditLogs} className="text-xs text-slate-500 hover:underline">Actualizar</button></div>
@@ -229,57 +231,112 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-gray-100">{auditLogs.map(log => (<tr key={log.id} className="hover:bg-slate-50"><td className="px-6 py-4 text-xs font-mono">{new Date(log.created_at).toLocaleString('es-VE')}</td><td className="px-6 py-4 font-semibold">@{log.user_name}</td><td className="px-6 py-4">{log.lead_name}</td><td className="px-6 py-4 text-xs">{log.action_details}</td></tr>))}</tbody>
                   </table>
                 </div>
-              ) : (
+              ) : activeTab === 'leads' ? (
                 
-                // TABLA DE LEADS / PACIENTES
+                // --- TABLA DE LEADS (Prospectos) ---
                 <div className="flex flex-col">
                   <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">💡 Doble clic para editar.</p>
                   <table className="w-full text-sm text-left min-w-[1000px]">
-                    <thead className={`${activeTab === 'leads' ? 'bg-gray-50' : 'bg-purple-50'} text-slate-800`}>
+                    <thead className="bg-gray-50 text-slate-800">
                       <tr>
-                        <th className="px-6 py-4 font-semibold">{activeTab === 'leads' ? 'Fecha' : 'Paciente'}</th>
-                        <th className="px-6 py-4 font-semibold">{activeTab === 'leads' ? 'Datos Contacto' : 'Tratamientos'}</th>
-                        <th className="px-6 py-4 font-semibold">{activeTab === 'leads' ? 'Tratamientos' : 'Peso Inicial'}</th>
-                        <th className="px-6 py-4 font-semibold">{activeTab === 'leads' ? 'Estatus' : 'IMC'}</th>
-                        <th className="px-6 py-4 font-semibold text-center">{activeTab === 'leads' ? 'Notas' : 'Peso Final'}</th>
+                        <th className="px-6 py-4 font-semibold">Fecha</th>
+                        <th className="px-6 py-4 font-semibold">Datos Contacto</th>
+                        <th className="px-6 py-4 font-semibold">Tratamientos</th>
+                        <th className="px-6 py-4 font-semibold">Estatus</th>
+                        <th className="px-6 py-4 font-semibold text-center">Notas</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paginatedList.map((lead) => (
-                        <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className={`transition hover:bg-slate-50 cursor-pointer`}>
-                          {activeTab === 'leads' ? (
-                            <>
-                              <td className="px-6 py-4 text-xs text-slate-500">{new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
-                              <td className="px-6 py-4">
-                                <div className="font-bold">{lead.name}</div>
-                                <div className="text-xs font-mono text-slate-400">{lead.phone}</div>
-                                {lead.username && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-0.5">@{lead.username}</a>}
-                              </td>
-                              <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div></td>
-                              <td className="px-6 py-4"><div className="flex flex-col gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-2 py-1 text-[10px] font-bold rounded border ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
-                                <button onClick={(e) => handlePatientClick(e, lead)} className={`px-2 py-1 text-[10px] font-bold rounded border ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-400 border-slate-200'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
-                              </div></td>
-                              <td className="px-6 py-4 text-center"><button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100">Notas ({parseNotes(lead.notes).length})</button></td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-6 py-4">
-                                <div className="font-bold">{lead.name}</div>
-                                <div className="text-xs text-slate-400">{lead.phone}</div>
-                                {(lead.cedula || lead.edad) && (
-                                  <div className="mt-1 flex gap-2 text-[10px] font-semibold text-slate-400">
-                                    {lead.cedula && <span className="bg-slate-100 px-1.5 py-0.5 rounded">C.I: {lead.cedula}</span>}
-                                    {lead.edad && <span className="bg-slate-100 px-1.5 py-0.5 rounded">{lead.edad} años</span>}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">{t}</span>)}</div></td>
-                              <td className="px-6 py-4 font-mono">{lead.initial_weight || '-'} kg</td>
-                              <td className="px-6 py-4 font-bold text-purple-700">{lead.bmi || '-'}</td>
-                              <td className="px-6 py-4"><input type="number" step="0.01" defaultValue={lead.final_weight || ''} onBlur={(e) => updateLead(lead.id, { final_weight: parseFloat(e.target.value) || null })} className="w-20 p-1 text-center border border-purple-100 rounded focus:ring-1 focus:ring-purple-400 outline-none" placeholder="kg" /></td>
-                            </>
-                          )}
+                        <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-slate-50 cursor-pointer">
+                          <td className="px-6 py-4 text-xs text-slate-500 align-top">{new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-slate-800">{lead.name}</div>
+                            <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
+                            {lead.username && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
+                          </td>
+                          <td className="px-6 py-4 align-top"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div></td>
+                          <td className="px-6 py-4 align-top"><div className="flex flex-col gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
+                            <button onClick={(e) => handlePatientClick(e, lead)} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
+                          </div></td>
+                          <td className="px-6 py-4 align-top text-center"><button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors font-semibold">Notas ({parseNotes(lead.notes).length})</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+
+                // --- TABLA DE PACIENTES CLÍNICOS (Nuevo Diseño) ---
+                <div className="flex flex-col">
+                  <p className="px-6 py-2 text-xs text-slate-400 bg-purple-50 border-b border-purple-100">💡 Doble clic para editar datos o tratamientos.</p>
+                  <table className="w-full text-sm text-left min-w-[1100px]">
+                    <thead className="bg-purple-50 text-purple-900">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">Paciente</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Identidad</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Tratamientos</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Medidas Base</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Evolución</th>
+                        <th className="px-6 py-4 font-semibold text-center border-l border-purple-100">Historial</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {paginatedList.map((lead) => (
+                        <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-purple-50/40 cursor-pointer group">
+                          
+                          {/* Columna Paciente */}
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-slate-800">{lead.name}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
+                            {lead.username && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
+                          </td>
+                          
+                          {/* ✨ NUEVA Columna Identidad */}
+                          <td className="px-6 py-4 align-top border-l border-gray-50">
+                            <div className="text-xs text-slate-700 mb-1">
+                              <span className="font-semibold text-slate-400 text-[10px] uppercase tracking-wider block mb-0.5">C.I.</span>
+                              {lead.cedula ? <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">{lead.cedula}</span> : <span className="text-slate-300 italic">No registrada</span>}
+                            </div>
+                            <div className="text-xs text-slate-700">
+                              <span className="font-semibold text-slate-400 text-[10px] uppercase tracking-wider block mb-0.5">Edad</span>
+                              {lead.edad ? <span>{lead.edad} años</span> : <span className="text-slate-300 italic">No registrada</span>}
+                            </div>
+                          </td>
+
+                          {/* Columna Tratamientos */}
+                          <td className="px-6 py-4 align-top border-l border-gray-50">
+                            <div className="flex flex-col items-start gap-1.5">
+                              {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-purple-100 text-purple-700 whitespace-nowrap">{t}</span>)}
+                            </div>
+                          </td>
+                          
+                          {/* ✨ NUEVA Columna Medidas Base (Agrupada) */}
+                          <td className="px-6 py-4 align-top border-l border-gray-50">
+                            <div className="flex flex-col gap-1 text-xs">
+                              <span className="text-slate-600 flex justify-between w-24"><strong className="text-slate-400">Peso:</strong> <span>{lead.initial_weight || '-'} kg</span></span>
+                              <span className="text-slate-600 flex justify-between w-24"><strong className="text-slate-400">Est:</strong> <span>{lead.height || '-'} m</span></span>
+                              <span className="text-slate-600 flex justify-between w-24 items-center"><strong className="text-slate-400">IMC:</strong> <span className="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px]">{lead.bmi || '-'}</span></span>
+                            </div>
+                          </td>
+
+                          {/* Columna Evolución */}
+                          <td className="px-6 py-4 align-top border-l border-gray-50">
+                            <label className="text-[10px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider">Peso Actual</label>
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <input type="number" step="0.01" defaultValue={lead.final_weight || ''} onBlur={(e) => updateLead(lead.id, { final_weight: parseFloat(e.target.value) || null })} className="w-20 p-2 text-sm border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none text-center font-mono shadow-sm" placeholder="-" />
+                              <span className="text-xs font-medium text-slate-400">kg</span>
+                            </div>
+                          </td>
+
+                          {/* Columna Historial */}
+                          <td className="px-6 py-4 align-top text-center border-l border-gray-50">
+                            <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs font-bold bg-white text-purple-700 px-4 py-2 rounded-lg border border-purple-200 hover:bg-purple-50 transition shadow-sm w-full">
+                              Ver Notas ({parseNotes(lead.notes).length})
+                            </button>
+                          </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -292,9 +349,9 @@ export default function Dashboard() {
           {/* CONTROLES DE PAGINACIÓN TABLAS */}
           {activeTab !== 'audit' && totalPages > 1 && (
             <div className="flex justify-between items-center px-6 py-4 bg-white border-t border-gray-100">
-              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-3 py-2 rounded-lg transition"><ChevronLeft size={18} /></button>
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-4 py-2 rounded-lg transition">Anterior</button>
               <span className="text-sm font-medium text-slate-500">Página {currentPage} de {totalPages}</span>
-              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-3 py-2 rounded-lg transition"><ChevronRight size={18} /></button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-4 py-2 rounded-lg transition">Siguiente</button>
             </div>
           )}
         </div>
