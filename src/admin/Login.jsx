@@ -1,52 +1,94 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
-import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png'; // Asegúrate de que la ruta sea correcta
+import { Lock, User } from 'lucide-react';
+import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
+
+// Nuestra base de datos local de usuarios
+const USERS = {
+  'drvictor': { password: 'DRvictor2026', role: 'superadmin', name: 'Dr. Víctor' },
+  'asistente': { password: 'DR2026as', role: 'user', name: 'Asistente' },
+  'enfermeria1': { password: 'DR2026en', role: 'user', name: 'Enfermería 1' },
+  'enfermeria2': { password: 'DR2026en2', role: 'user', name: 'Enfermería 2' },
+  'enfermeria3': { password: 'DR2026en3', role: 'user', name: 'Enfermería 3' }
+};
 
 export default function Login() {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // Clave temporal de acceso. ¡Cámbiala por la que desees!
-    if (password === 'VictorGastro2026') {
-      localStorage.setItem('isAdminAuth', 'true');
+    
+    // Buscamos si el usuario existe y la clave coincide
+    const user = USERS[username.toLowerCase().trim()];
+    
+    if (user && user.password === password) {
+      // Guardamos la identidad de la persona que acaba de entrar
+      localStorage.setItem('currentUser', JSON.stringify({ 
+        username: username.toLowerCase().trim(), 
+        role: user.role, 
+        name: user.name 
+      }));
+      // Mantenemos la llave general para que no lo saque el sistema
+      localStorage.setItem('isAdminAuth', 'true'); 
       navigate('/dashboard');
     } else {
-      setError('Contraseña incorrecta');
+      setError('Usuario o contraseña incorrectos');
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <div className="mb-8 flex justify-center">
-          <img src={logoBlue} alt="Dr. Victor Logo" className="h-12 w-auto" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src={logoBlue} alt="Logo Dr. Víctor" className="h-20 w-auto object-contain mb-4" />
+          <p className="text-slate-500">Acceso exclusivo para personal</p>
         </div>
-        <h2 className="mb-6 text-center text-2xl font-bold text-slate-800">Acceso al CRM</h2>
         
-        <form onSubmit={handleLogin} className="space-y-4">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-600">Contraseña de Administrador</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Usuario</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input
-                type="password"
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input 
+                type="text" 
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0056b3] focus:border-transparent outline-none transition"
+                placeholder="Ej. drvictor"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Contraseña</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input 
+                type="password" 
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 focus:border-[#0056b3] focus:outline-none focus:ring-1 focus:ring-[#0056b3]"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0056b3] focus:border-transparent outline-none transition"
                 placeholder="••••••••"
               />
             </div>
-            {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
           </div>
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-[#0056b3] py-3 font-semibold text-white transition hover:bg-blue-700"
+
+          <button 
+            type="submit" 
+            className="w-full bg-[#0056b3] hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md hover:shadow-lg"
           >
-            Ingresar al Panel
+            Iniciar Sesión
           </button>
         </form>
       </div>
