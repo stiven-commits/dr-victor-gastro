@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, LogOut, HeartPulse, Database, Loader2, Search, Filter, X, FileText, ChevronLeft, ChevronRight, ShieldAlert, CircleDot } from 'lucide-react';
+import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
 
 const TREATMENT_OPTIONS = [
   "Manga Gástrica", "Balón Allurion", "Balón Ovalsiluethe", "Método Tore", "CPRE", "Consulta presencial", "Consulta online", "Retiro de balón"
@@ -190,7 +191,7 @@ export default function Dashboard() {
     <div className="flex min-h-screen font-sans bg-gray-50">
       <aside className="w-64 bg-white shadow-lg flex flex-col">
         <div className="p-6 border-b border-gray-100 flex flex-col items-start">
-          <img src="/logo.png" alt="Logo Dr. Víctor" className="h-12 w-auto object-contain mb-3" />
+          <img src={logoBlue} alt="Logo Dr. Víctor" className="h-12 w-auto object-contain mb-3" />
           <p className="mt-1 text-sm font-semibold text-slate-500">Hola, {currentUser.name}</p>
         </div>
         <nav className="p-4 space-y-2 flex-1">
