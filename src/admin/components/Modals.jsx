@@ -4,19 +4,36 @@ import { TREATMENT_OPTIONS } from '../utils/helpers';
 export function PatientModal({ isOpen, onClose, medicalData, setMedicalData, handleHeightChange, handleSavePatient, leadName }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-full">
         <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white"><h3 className="font-bold">Datos Clínicos del Paciente</h3><button onClick={onClose}><X size={20}/></button></div>
-        <form onSubmit={handleSavePatient} className="p-6 space-y-4">
+        <form onSubmit={handleSavePatient} className="p-6 space-y-4 overflow-y-auto">
           <p className="text-sm text-slate-600 mb-2">Ingresa los datos base para iniciar la ficha clínica de <strong className="font-bold text-slate-800">{leadName}</strong>.</p>
+          
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={medicalData.cedula} onChange={(e) => setMedicalData({...medicalData, cedula: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Ej: V-12345678" /></div>
             <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={medicalData.edad} onChange={(e) => setMedicalData({...medicalData, edad: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Años" min="1" max="120" /></div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">Peso Inicial (kg)</label><input type="number" step="0.01" required value={medicalData.weight} onChange={(e) => setMedicalData({...medicalData, weight: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Ej: 85.5" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Estatura (metros)</label><input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Sexo</label>
+              <select value={medicalData.sexo} onChange={(e) => setMedicalData({...medicalData, sexo: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white">
+                <option value="">Seleccionar</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+              </select>
+            </div>
+            <div><label className="block text-sm font-semibold mb-1">Estatura (m)</label><input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
           </div>
+
+          <div><label className="block text-sm font-semibold mb-1">Peso Inicial (kg)</label><input type="number" step="0.01" required value={medicalData.weight} onChange={(e) => setMedicalData({...medicalData, weight: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Ej: 85.5" /></div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">Antecedentes Médicos</label>
+            <textarea value={medicalData.medical_history} onChange={(e) => setMedicalData({...medicalData, medical_history: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none resize-none" rows="3" placeholder="Alergias, cirugías previas, enfermedades crónicas..."></textarea>
+          </div>
+
           <div className="pt-2 mt-2"><button type="submit" className="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition shadow-sm">Confirmar e Iniciar Ficha</button></div>
         </form>
       </div>
@@ -34,12 +51,12 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-full">
         
         <div className={`flex justify-between items-center p-4 text-white ${leadToEdit.is_patient ? 'bg-purple-700' : 'bg-slate-800'}`}>
           <h3 className="font-bold text-lg">{leadToEdit.is_patient ? '⭐ Editar Paciente' : '🎯 Editar Lead'}</h3>
-          <button onClick={onClose} className="hover:text-gray-200 transition"><X size={20}/></button>
+          <button type="button" onClick={onClose} className="hover:text-gray-200 transition"><X size={20}/></button>
         </div>
         
         <form onSubmit={handleSaveEdit} className="p-6 overflow-y-auto space-y-5">
@@ -65,9 +82,23 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
           </div>
 
           {leadToEdit.is_patient && (
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-              <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" value={editFormData.initial_weight} onChange={(e) => setEditFormData({...editFormData, initial_weight: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" /></div>
-              <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" value={editFormData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" maxLength={4} /></div>
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-purple-700">Sexo</label>
+                  <select value={editFormData.sexo} onChange={(e) => setEditFormData({...editFormData, sexo: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+                    <option value="">Seleccionar</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                  </select>
+                </div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" value={editFormData.initial_weight} onChange={(e) => setEditFormData({...editFormData, initial_weight: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" /></div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" value={editFormData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" maxLength={4} /></div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-purple-700">Antecedentes Médicos</label>
+                <textarea value={editFormData.medical_history} onChange={(e) => setEditFormData({...editFormData, medical_history: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 resize-none" rows="3" placeholder="Alergias, cirugías previas, enfermedades crónicas..."></textarea>
+              </div>
             </div>
           )}
 
@@ -124,11 +155,11 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-full">
         <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white">
           <h3 className="font-bold">Añadir Registro Manual</h3>
-          <button onClick={onClose} className="hover:text-red-200 transition"><X size={20}/></button>
+          <button type="button" onClick={onClose} className="hover:text-red-200 transition"><X size={20}/></button>
         </div>
         
         <form onSubmit={handleCreateManual} className="p-6 overflow-y-auto space-y-6">
@@ -161,9 +192,23 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
           </div>
 
           {newManualData.is_patient && (
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-              <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" required={newManualData.is_patient} value={newManualData.weight} onChange={(e) => setNewManualData({...newManualData, weight: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" placeholder="Ej: 85.5" /></div>
-              <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" required={newManualData.is_patient} value={newManualData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-purple-700">Sexo</label>
+                  <select value={newManualData.sexo} onChange={(e) => setNewManualData({...newManualData, sexo: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+                    <option value="">Seleccionar</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                  </select>
+                </div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" required={newManualData.is_patient} value={newManualData.weight} onChange={(e) => setNewManualData({...newManualData, weight: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" placeholder="Ej: 85.5" /></div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" required={newManualData.is_patient} value={newManualData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-purple-700">Antecedentes Médicos</label>
+                <textarea value={newManualData.medical_history} onChange={(e) => setNewManualData({...newManualData, medical_history: e.target.value})} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 resize-none" rows="3" placeholder="Alergias, cirugías previas, enfermedades crónicas..."></textarea>
+              </div>
             </div>
           )}
 

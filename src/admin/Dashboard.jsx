@@ -30,12 +30,12 @@ export default function Dashboard() {
   // Estados de Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
-  const [medicalData, setMedicalData] = useState({ weight: '', height: '', cedula: '', edad: '' });
+  const [medicalData, setMedicalData] = useState({ weight: '', height: '', cedula: '', edad: '', sexo: '', medical_history: '' });
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState(null);
   const [editFormData, setEditFormData] = useState({ 
-    name: '', phone: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '' 
+    name: '', phone: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '', sexo: '', medical_history: '' 
   });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -50,7 +50,7 @@ export default function Dashboard() {
   // Estado del Nuevo Registro Manual
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newManualData, setNewManualData] = useState({
-    name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', is_patient: true
+    name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true
   });
 
   // Autenticación
@@ -138,13 +138,15 @@ export default function Dashboard() {
       initial_weight: newManualData.is_patient ? (w || null) : null,
       height: newManualData.is_patient ? (h || null) : null,
       bmi: newManualData.is_patient ? bmiValue : null,
+      sexo: newManualData.is_patient ? (newManualData.sexo || null) : null,
+      medical_history: newManualData.is_patient ? (newManualData.medical_history || null) : null,
       updated_by: currentUser.username
     };
 
     const fakeId = Date.now();
     setLeads([{ ...payload, id: fakeId, created_at: new Date().toISOString(), is_contacted: true }, ...leads]);
     setAddModalOpen(false);
-    setNewManualData({name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', is_patient: true});
+    setNewManualData({name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true});
 
     try {
       await fetch(N8N_CREATE_URL, {
@@ -168,10 +170,10 @@ export default function Dashboard() {
   const handlePatientClick = (e, lead) => {
     e.stopPropagation(); 
     if (lead.is_patient) {
-      updateLead(lead.id, { is_patient: false, initial_weight: null, height: null, bmi: null, final_weight: null, cedula: null, edad: null });
+      updateLead(lead.id, { is_patient: false, initial_weight: null, height: null, bmi: null, final_weight: null, cedula: null, edad: null, sexo: null, medical_history: null });
     } else { 
       setSelectedLeadId(lead.id); 
-      setMedicalData({ weight: '', height: '', cedula: lead.cedula || '', edad: lead.edad || '' }); 
+      setMedicalData({ weight: '', height: '', cedula: lead.cedula || '', edad: lead.edad || '', sexo: lead.sexo || '', medical_history: lead.medical_history || '' }); 
       setModalOpen(true); 
     }
   };
@@ -183,7 +185,8 @@ export default function Dashboard() {
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
     updateLead(selectedLeadId, { 
       is_patient: true, initial_weight: w || null, height: h || null, bmi: bmiValue,
-      cedula: medicalData.cedula || null, edad: medicalData.edad ? parseInt(medicalData.edad) : null
+      cedula: medicalData.cedula || null, edad: medicalData.edad ? parseInt(medicalData.edad) : null,
+      sexo: medicalData.sexo || null, medical_history: medicalData.medical_history || null
     });
     setModalOpen(false);
   };
@@ -198,7 +201,9 @@ export default function Dashboard() {
       cedula: lead.cedula || '',
       edad: lead.edad || '',
       initial_weight: lead.initial_weight || '',
-      height: lead.height || ''
+      height: lead.height || '',
+      sexo: lead.sexo || '',
+      medical_history: lead.medical_history || ''
     });
     setEditModalOpen(true);
   };
@@ -215,7 +220,8 @@ export default function Dashboard() {
       updateLead(leadToEdit.id, { 
         name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
         cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
-        initial_weight: w || null, height: h || null, bmi: bmiValue
+        initial_weight: w || null, height: h || null, bmi: bmiValue,
+        sexo: editFormData.sexo || null, medical_history: editFormData.medical_history || null
       });
       setEditModalOpen(false);
     } else {
@@ -227,7 +233,7 @@ export default function Dashboard() {
       
       if (editFormData.treatments.some(t => MEDICAL_TREATMENTS.includes(t))) {
         setSelectedLeadId(leadToEdit.id); 
-        setMedicalData({ weight: '', height: '', cedula: editFormData.cedula || '', edad: editFormData.edad || '' });
+        setMedicalData({ weight: '', height: '', cedula: editFormData.cedula || '', edad: editFormData.edad || '', sexo: '', medical_history: '' });
         setTimeout(() => setModalOpen(true), 300); 
       }
     }
