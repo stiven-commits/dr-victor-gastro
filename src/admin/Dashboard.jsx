@@ -69,7 +69,15 @@ export default function Dashboard() {
   useEffect(() => { fetchLeads(); }, []);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab]);
   useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus]); 
-
+// Efecto para actualizar el título de la pestaña del navegador
+  useEffect(() => {
+    let title = 'CRM Dr. Víctor';
+    if (activeTab === 'leads') title = 'CRM Dr. Víctor - Leads';
+    if (activeTab === 'patients') title = 'CRM Dr. Víctor - Pacientes';
+    if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
+    
+    document.title = title;
+  }, [activeTab]);
   const fetchLeads = async () => {
     try {
       const response = await fetch(`${N8N_GET_URL}?t=${new Date().getTime()}`, {
