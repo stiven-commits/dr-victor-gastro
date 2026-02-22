@@ -373,7 +373,14 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-gray-100">
                       {paginatedList.map((lead) => (
                         <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-slate-50 cursor-pointer">
-                          <td className="px-6 py-4 text-xs text-slate-500 align-top">{new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="text-xs font-bold text-slate-700">
+                              {new Date(lead.created_at).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-500 mt-0.5 bg-slate-100 border border-slate-200 inline-block px-1.5 py-0.5 rounded shadow-sm">
+                              {new Date(lead.created_at).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </div>
+                          </td>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-slate-800">{lead.name}</div>
                             <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
@@ -413,6 +420,10 @@ export default function Dashboard() {
                             <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
                             {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
                             {lead.username === 'Registro Manual' && <span className="text-[11px] text-slate-400 mt-1 block font-medium">📝 Registro Manual</span>}
+                            <div className="text-[9px] text-slate-400 mt-2 font-mono flex flex-col">
+                              <span className="uppercase tracking-wider font-semibold text-[8px] text-slate-300">Ingresó al sistema</span>
+                              {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </div>
                           </td>
                           <td className="px-6 py-4 align-top border-l border-gray-50">
                             <div className="text-xs text-slate-700 mb-1">
