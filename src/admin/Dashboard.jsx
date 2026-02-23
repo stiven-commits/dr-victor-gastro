@@ -4,6 +4,7 @@ import { Loader2, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
+import AgendaView from './components/AgendaView';
 import MetricsCards from './components/MetricsCards';
 import Filters from './components/Filters';
 import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal } from './components/Modals';
@@ -17,7 +18,9 @@ export default function Dashboard() {
   // Estados Generales
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('leads');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('crmActiveTab') || 'leads';
+  });
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
@@ -35,7 +38,7 @@ export default function Dashboard() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState(null);
   const [editFormData, setEditFormData] = useState({ 
-    name: '', phone: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '', sexo: '', medical_history: '' 
+    name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '', sexo: '', medical_history: '' 
   });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -50,7 +53,7 @@ export default function Dashboard() {
   // Estado del Nuevo Registro Manual
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newManualData, setNewManualData] = useState({
-    name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true
+    name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true
   });
 
   // Autenticación
@@ -67,6 +70,9 @@ export default function Dashboard() {
 
   // Efectos (Carga de datos)
   useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => {
+    localStorage.setItem('crmActiveTab', activeTab);
+  }, [activeTab]);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab]);
   useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus]); 
 // Efecto para actualizar el título de la pestaña del navegador
@@ -74,6 +80,7 @@ export default function Dashboard() {
     let title = 'CRM Dr. Víctor';
     if (activeTab === 'leads') title = 'CRM Dr. Víctor - Leads';
     if (activeTab === 'patients') title = 'CRM Dr. Víctor - Pacientes';
+    if (activeTab === 'agenda') title = 'CRM Dr. Víctor - Agenda';
     if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
     
     document.title = title;
@@ -131,6 +138,7 @@ export default function Dashboard() {
     const payload = {
       name: newManualData.name,
       phone: newManualData.phone,
+      email: newManualData.email || null,
       treatment: newManualData.treatments.join(', ') || 'Por definir',
       is_patient: newManualData.is_patient,
       cedula: newManualData.cedula || null,
@@ -146,7 +154,7 @@ export default function Dashboard() {
     const fakeId = Date.now();
     setLeads([{ ...payload, id: fakeId, created_at: new Date().toISOString(), is_contacted: true }, ...leads]);
     setAddModalOpen(false);
-    setNewManualData({name: '', phone: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true});
+    setNewManualData({name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true});
 
     try {
       await fetch(N8N_CREATE_URL, {
@@ -197,6 +205,7 @@ export default function Dashboard() {
     setEditFormData({ 
       name: lead.name || '', 
       phone: lead.phone || '', 
+      email: lead.email || '',
       treatments: validTreatments,
       cedula: lead.cedula || '',
       edad: lead.edad || '',
@@ -219,6 +228,7 @@ export default function Dashboard() {
     if (leadToEdit.is_patient) {
       updateLead(leadToEdit.id, { 
         name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
+        email: editFormData.email || null,
         cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
         initial_weight: w || null, height: h || null, bmi: bmiValue,
         sexo: editFormData.sexo || null, medical_history: editFormData.medical_history || null
@@ -227,6 +237,7 @@ export default function Dashboard() {
     } else {
       updateLead(leadToEdit.id, { 
         name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
+        email: editFormData.email || null,
         cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null
       });
       setEditModalOpen(false);
@@ -327,16 +338,16 @@ export default function Dashboard() {
       <main className="flex-1 p-8">
         <header className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-800">
-            {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : 'Auditoría del Sistema'}
+            {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : 'Auditoría del Sistema'}
           </h1>
-          {activeTab !== 'audit' && (
+          {activeTab !== 'audit' && activeTab !== 'agenda' && (
             <button onClick={() => setAddModalOpen(true)} className="bg-[#0056b3] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
               <Plus size={20} /> Añadir Registro
             </button>
           )}
         </header>
 
-        {activeTab !== 'audit' && (
+        {activeTab !== 'audit' && activeTab !== 'agenda' && (
           <>
             <MetricsCards loading={loading} totalLeads={leads.length} uncontactedCount={uncontactedCount} activePatients={leads.filter(l => l.is_patient).length} />
             <Filters searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterTreatment={filterTreatment} setFilterTreatment={setFilterTreatment} uniqueTreatments={uniqueTreatments} />
@@ -357,6 +368,8 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-gray-100">{auditLogs.map(log => (<tr key={log.id} className="hover:bg-slate-50"><td className="px-6 py-4 text-xs font-mono">{new Date(log.created_at).toLocaleString('es-VE')}</td><td className="px-6 py-4 font-semibold">@{log.user_name}</td><td className="px-6 py-4">{log.lead_name}</td><td className="px-6 py-4 text-xs">{log.action_details}</td></tr>))}</tbody>
                   </table>
                 </div>
+              ) : activeTab === 'agenda' ? (
+                <AgendaView API_KEY={API_KEY} leads={leads} />
               ) : activeTab === 'leads' ? (
                 <div className="flex flex-col">
                   <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">💡 Doble clic para editar.</p>

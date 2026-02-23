@@ -1,4 +1,5 @@
-﻿import { X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+﻿import { useState } from 'react';
+import { X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { TREATMENT_OPTIONS } from '../utils/helpers';
 
 export function PatientModal({ isOpen, onClose, medicalData, setMedicalData, handleHeightChange, handleSavePatient, leadName }) {
@@ -60,9 +61,10 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
         </div>
         
         <form onSubmit={handleSaveEdit} className="p-6 overflow-y-auto space-y-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Nombre</label><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
             <div><label className="block text-sm font-semibold mb-1">Teléfono</label><input type="text" value={editFormData.phone} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
+            <div><label className="block text-sm font-semibold mb-1">Correo Electrónico</label><input type="email" value={editFormData.email} onChange={(e) => setEditFormData({...editFormData, email: e.target.value})} placeholder="Opcional" className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -170,9 +172,10 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Nombre Completo *</label><input required type="text" value={newManualData.name} onChange={(e) => setNewManualData({...newManualData, name: e.target.value})} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
             <div><label className="block text-sm font-semibold mb-1">Teléfono *</label><input required type="text" value={newManualData.phone} onChange={(e) => setNewManualData({...newManualData, phone: e.target.value})} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Correo (Email)</label><input type="email" value={newManualData.email} onChange={(e) => setNewManualData({...newManualData, email: e.target.value})} placeholder="Opcional" className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -279,6 +282,128 @@ export function WeightModal({ isOpen, onClose, activeWeightLead, newWeightValue,
           <div className="flex gap-2">
             <input type="number" step="0.01" required value={newWeightValue} onChange={(e) => setNewWeightValue(e.target.value)} placeholder="Ej: 75.5" className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 outline-none font-mono" />
             <button type="submit" className="bg-purple-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-purple-700 transition">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+export function CreateAppointmentModal({ isOpen, onClose, leads, handleCreate }) {
+  const [formData, setFormData] = useState({ patient_id: '', title: '', date: '', time: '', duration: '20', patient_email: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  if (!isOpen) return null;
+
+  const validLeads = leads.filter(l => l.name && l.name !== 'Pendiente' && l.email && l.email !== 'Pendiente' && l.email.includes('@'));
+
+  const filteredLeads = validLeads.filter(l => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (l.name && l.name.toLowerCase().includes(term)) ||
+      (l.cedula && l.cedula.toLowerCase().includes(term)) ||
+      (l.email && l.email.toLowerCase().includes(term))
+    );
+  });
+
+  const handleSelectLead = (lead) => {
+    setFormData({
+      ...formData,
+      patient_id: lead.id.toString(),
+      title: `Consulta - ${lead.name}`,
+      patient_email: lead.email || ''
+    });
+    setSearchTerm(`${lead.name} (${lead.cedula || 'Sin C.I'})`);
+    setShowDropdown(false);
+  };
+
+  const handleCustomClose = () => {
+    setSearchTerm('');
+    setFormData({ patient_id: '', title: '', date: '', time: '', duration: '20', patient_email: '' });
+    onClose();
+  };
+
+  // Calcular la fecha mínima (mañana)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const year = tomorrow.getFullYear();
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  const minDate = `${year}-${month}-${day}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white">
+          <h3 className="font-bold">Agendar Nueva Cita</h3>
+          <button type="button" onClick={handleCustomClose} className="hover:text-gray-200 transition"><X size={20}/></button>
+        </div>
+        <form onSubmit={(e) => handleCreate(e, formData)} className="p-6 space-y-4">
+          <div className="relative">
+            <label className="block text-sm font-semibold mb-1 text-slate-700">Paciente (Buscar por nombre, CI o correo)</label>
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowDropdown(true);
+                if(e.target.value === '') setFormData({...formData, patient_id: '', patient_email: ''});
+              }}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white"
+              placeholder="Escribe para buscar..."
+              required={!formData.patient_id}
+            />
+            {showDropdown && (
+              <ul className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl divide-y divide-gray-50">
+                {filteredLeads.length > 0 ? filteredLeads.map(l => (
+                  <li 
+                    key={l.id} 
+                    onMouseDown={(e) => { e.preventDefault(); handleSelectLead(l); }}
+                    className="p-3 hover:bg-blue-50 cursor-pointer transition"
+                  >
+                    <div className="font-bold text-sm text-[#0056b3]">{l.name}</div>
+                    <div className="text-[11px] text-slate-500 font-mono mt-0.5">CI: {l.cedula || 'N/A'} | ✉️ {l.email}</div>
+                  </li>
+                )) : (
+                  <li className="p-3 text-sm text-slate-500 text-center">No se encontraron pacientes válidos.</li>
+                )}
+              </ul>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1 text-slate-700">Motivo / Título</label>
+            <input required type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">Fecha</label>
+              <input 
+                required 
+                type="date" 
+                min={minDate}
+                value={formData.date} 
+                onChange={(e) => setFormData({...formData, date: e.target.value})} 
+                className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" 
+              />
+            </div>
+            <div><label className="block text-sm font-semibold mb-1 text-slate-700">Hora</label><input required type="time" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">Duración</label>
+              <select required value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
+                <option value="20">20 min</option>
+                <option value="40">40 min</option>
+                <option value="60">1 hora</option>
+                <option value="80">1 h 20 min</option>
+                <option value="100">1 h 40 min</option>
+                <option value="120">2 horas</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100">
+            <button type="button" onClick={handleCustomClose} className="px-5 py-2.5 font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
+            <button type="submit" className="px-6 py-2.5 bg-[#0056b3] text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition">Guardar Cita</button>
           </div>
         </form>
       </div>

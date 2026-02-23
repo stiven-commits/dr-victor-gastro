@@ -21,3 +21,96 @@ body {
   color: #0f172a;
   background: #ffffff;
 }
+/* ========================================================= */
+/* TEMA PERSONALIZADO FULLCALENDAR (ESTILO MODERN OUTLOOK)  */
+/* ========================================================= */
+
+/* Variables de color de FullCalendar */
+.fc {
+  --fc-event-bg-color: #dbeafe; /* Fondo azul clarito */
+  --fc-event-border-color: transparent; /* Quitamos el borde general */
+  --fc-event-text-color: #0f172a; /* Texto oscuro */
+  --fc-border-color: #f1f5f9; /* Líneas de la cuadrícula más suaves */
+  --fc-today-bg-color: #f8fafc; /* Color del día actual ultra sutil */
+  --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Estructura del bloque de la cita */
+.fc-timegrid-event {
+  border-radius: 4px !important;
+  border-left: 4px solid #0056b3 !important; /* La barra azul oscura a la izquierda */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 2px 4px;
+  overflow: hidden;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.fc-timegrid-event:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  filter: brightness(0.97);
+}
+
+/* Color interno del bloque */
+.fc-v-event .fc-event-main {
+  color: #1e293b;
+}
+
+/* Estilo de la Hora dentro de la cita */
+.fc-event-time {
+  font-weight: 600 !important;
+  font-size: 0.70rem;
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+/* Estilo del Título (Nombre del paciente) */
+.fc-event-title {
+  font-weight: 700 !important;
+  font-size: 0.80rem;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+/* Líneas punteadas horizontales para las medias horas */
+.fc-timegrid-slot-minor {
+  border-top-style: dashed !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Esconder el texto aburrido de "all-day" */
+.fc-scrollgrid-section-allday {
+  display: none !important;
+}
+
+/* Diseño de los botones superiores del calendario */
+.fc-button-primary {
+  background-color: #0056b3 !important;
+  border-color: #0056b3 !important;
+  font-weight: 600 !important;
+  text-transform: capitalize !important;
+  border-radius: 8px !important;
+}
+
+.fc-button-primary:hover {
+  background-color: #004494 !important;
+}
+
+.fc-button-active {
+  background-color: #0f172a !important;
+  border-color: #0f172a !important;
+}
+
+/* Título central (ej. 24 de febrero de 2026) */
+.fc-toolbar-title {
+  font-weight: 800 !important;
+  color: #1e293b !important;
+  font-size: 1.5rem !important;
+}
+
+/* Forzar contraste de texto en los eventos del calendario */
+.fc-event-main, 
+.fc-event-title, 
+.fc-event-time {
+  color: #ffffff !important; /* Texto blanco puro */
+  text-shadow: 0px 1px 2px rgba(0,0,0,0.2); /* Sombra sutil para máxima legibilidad */
+}

@@ -1,4 +1,4 @@
-﻿import { Users, LogOut, HeartPulse, ShieldAlert } from 'lucide-react';
+import { Users, LogOut, HeartPulse, ShieldAlert, Calendar } from 'lucide-react';
 import logoBlue from '../../assets/logo-dr-victor-horizontal-300x66.png';
 
 export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLogout }) {
@@ -14,6 +14,9 @@ export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLo
         </button>
         <button onClick={() => setActiveTab('patients')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'patients' ? 'bg-[#0056b3] text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
           <HeartPulse className="w-5 h-5" /> Pacientes Clínicos
+        </button>
+        <button onClick={() => setActiveTab('agenda')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'agenda' ? 'bg-[#0056b3] text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
+          <Calendar className="w-5 h-5" /> Agenda
         </button>
         {currentUser.role === 'superadmin' && (
           <button onClick={() => setActiveTab('audit')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'audit' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>
