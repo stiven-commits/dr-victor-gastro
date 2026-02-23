@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 
 // --- 1. IMPORTACIONES DE LA WEB PÚBLICA ---
@@ -41,6 +42,19 @@ function App() {
   
   // Detectamos si la URL contiene "login" o "dashboard"
   const isAdminRoute = location.pathname.includes('/login') || location.pathname.includes('/dashboard')
+
+  // Escudo protector: Ocultar instalación PWA en la web pública
+  useEffect(() => {
+    const handleInstallPrompt = (e) => {
+      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalación
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/dashboard')) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans">

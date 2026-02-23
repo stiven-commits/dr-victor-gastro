@@ -14,7 +14,9 @@ export default defineConfig({
         description: 'Sistema de Gestión de Pacientes y Citas del Dr. Víctor Manrique',
         theme_color: '#0056b3', // Tu color azul institucional
         background_color: '#ffffff',
-        display: 'standalone', // Esto oculta la barra de direcciones (modo App)
+        display: 'standalone', 
+        start_url: '/dashboard', // Obliga a la app a abrir siempre en el CRM
+        scope: '/', // Permite que la app navegue entre /login y /dashboard
         icons: [
           {
             src: '/cropped-iso-victor-150x150.jpg',
