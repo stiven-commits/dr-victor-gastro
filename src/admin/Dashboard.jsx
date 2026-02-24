@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState(null); // Nuevo estado para acordeón móvil
 
   // Estados de Filtros y Paginación
   const [searchTerm, setSearchTerm] = useState('');
@@ -382,40 +383,87 @@ export default function Dashboard() {
               ) : activeTab === 'leads' ? (
                 <div className="flex flex-col">
                   <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">💡 Doble clic para editar.</p>
-                  <table className="w-full text-sm text-left min-w-[1000px]">
+                                    <table className="w-full text-sm text-left min-w-[320px] md:min-w-[1000px]">
                     <thead className="bg-gray-50 text-slate-800">
                       <tr>
-                        <th className="px-6 py-4 font-semibold">Fecha</th>
-                        <th className="px-6 py-4 font-semibold">Datos Contacto</th>
-                        <th className="px-6 py-4 font-semibold">Tratamientos</th>
-                        <th className="px-6 py-4 font-semibold">Estatus</th>
-                        <th className="px-6 py-4 font-semibold text-center">Notas</th>
+                        <th className="px-6 py-4 font-semibold hidden md:table-cell">Fecha</th>
+                        <th className="px-4 md:px-6 py-4 font-semibold">Datos Contacto</th>
+                        <th className="px-6 py-4 font-semibold hidden md:table-cell">Tratamientos</th>
+                        <th className="px-6 py-4 font-semibold hidden md:table-cell">Estatus</th>
+                        <th className="px-6 py-4 font-semibold text-center hidden md:table-cell">Notas</th>
+                        <th className="px-4 py-4 font-semibold text-right md:hidden">Detalles</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paginatedList.map((lead) => (
-                        <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-slate-50 cursor-pointer">
-                          <td className="px-6 py-4 align-top">
-                            <div className="text-xs font-bold text-slate-700">
-                              {new Date(lead.created_at).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                            </div>
-                            <div className="text-[10px] font-mono text-slate-500 mt-0.5 bg-slate-100 border border-slate-200 inline-block px-1.5 py-0.5 rounded shadow-sm">
-                              {new Date(lead.created_at).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', hour12: true })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top">
-                            <div className="font-bold text-slate-800">{lead.name}</div>
-                            <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
-                            {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
-                            {lead.username === 'Registro Manual' && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">📝 Registro Manual</span>}
-                          </td>
-                          <td className="px-6 py-4 align-top"><div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div></td>
-                          <td className="px-6 py-4 align-top"><div className="flex flex-col gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
-                            <button onClick={(e) => handlePatientClick(e, lead)} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
-                          </div></td>
-                          <td className="px-6 py-4 align-top text-center"><button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors font-semibold">Notas ({parseNotes(lead.notes).length})</button></td>
-                        </tr>
+                        <Fragment key={lead.id}>
+                          <tr onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-slate-50 cursor-pointer">
+                            <td className="px-6 py-4 align-top hidden md:table-cell">
+                              <div className="text-xs font-bold text-slate-700">
+                                {new Date(lead.created_at).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              </div>
+                              <div className="text-[10px] font-mono text-slate-500 mt-0.5 bg-slate-100 border border-slate-200 inline-block px-1.5 py-0.5 rounded shadow-sm">
+                                {new Date(lead.created_at).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', hour12: true })}
+                              </div>
+                            </td>
+                            <td className="px-4 md:px-6 py-4 align-top">
+                              <div className="font-bold text-slate-800">{lead.name}</div>
+                              <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
+                              {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
+                              {lead.username === 'Registro Manual' && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">📝 Registro Manual</span>}
+                            </td>
+                            <td className="px-6 py-4 align-top hidden md:table-cell">
+                              <div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div>
+                            </td>
+                            <td className="px-6 py-4 align-top hidden md:table-cell">
+                              <div className="flex flex-col gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
+                                <button onClick={(e) => handlePatientClick(e, lead)} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 align-top text-center hidden md:table-cell">
+                              <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors font-semibold">Notas ({parseNotes(lead.notes).length})</button>
+                            </td>
+                            {/* Botón Detalles Móvil */}
+                            <td className="px-4 py-4 align-middle text-right md:hidden">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setExpandedRowId(expandedRowId === lead.id ? null : lead.id); }}
+                                className={`text-[11px] font-bold px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${expandedRowId === lead.id ? 'bg-slate-200 text-slate-700' : 'bg-[#0056b3] text-white shadow-sm'}`}
+                              >
+                                {expandedRowId === lead.id ? 'Cerrar' : 'Detalles'}
+                              </button>
+                            </td>
+                          </tr>
+                          
+                          {/* Fila expandible para Móviles (Leads) */}
+                          {expandedRowId === lead.id && (
+                            <tr className="md:hidden bg-slate-50/80 border-b border-gray-200">
+                              <td colSpan="2" className="px-4 py-4 shadow-inner">
+                                <div className="flex flex-col gap-4">
+                                  <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100 shadow-sm">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingreso</span>
+                                    <span className="text-[11px] font-mono text-slate-600 font-bold">
+                                      {new Date(lead.created_at).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Tratamientos</span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-1 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`flex-1 px-3 py-2.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
+                                    <button onClick={(e) => handlePatientClick(e, lead)} className={`flex-1 px-3 py-2.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 shadow-sm'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
+                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="w-full text-xs bg-white text-blue-700 px-4 py-2.5 rounded-lg border border-blue-200 shadow-sm font-bold mt-1">
+                                    Abrir Notas ({parseNotes(lead.notes).length})
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -423,69 +471,121 @@ export default function Dashboard() {
               ) : (
                 <div className="flex flex-col">
                   <p className="px-6 py-2 text-xs text-slate-400 bg-purple-50 border-b border-purple-100">💡 Doble clic para editar datos o tratamientos.</p>
-                  <table className="w-full text-sm text-left min-w-[1100px]">
+                                    <table className="w-full text-sm text-left min-w-[320px] md:min-w-[1100px]">
                     <thead className="bg-purple-50 text-purple-900">
                       <tr>
-                        <th className="px-6 py-4 font-semibold">Paciente</th>
-                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Identidad</th>
-                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Tratamientos</th>
-                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Medidas Base</th>
-                        <th className="px-6 py-4 font-semibold border-l border-purple-100">Evolución</th>
-                        <th className="px-6 py-4 font-semibold text-center border-l border-purple-100">Historial</th>
+                        <th className="px-4 md:px-6 py-4 font-semibold">Paciente</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Identidad</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Tratamientos</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Medidas Base</th>
+                        <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Evolución</th>
+                        <th className="px-6 py-4 font-semibold text-center border-l border-purple-100 hidden md:table-cell">Historial</th>
+                        <th className="px-4 py-4 font-semibold text-right md:hidden">Expediente</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {paginatedList.map((lead) => (
-                        <tr key={lead.id} onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-purple-50/40 cursor-pointer group">
-                          <td className="px-6 py-4 align-top">
-                            <div className="font-bold text-slate-800">{lead.name}</div>
-                            <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
-                            {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
-                            {lead.username === 'Registro Manual' && <span className="text-[11px] text-slate-400 mt-1 block font-medium">📝 Registro Manual</span>}
-                            <div className="text-[9px] text-slate-400 mt-2 font-mono flex flex-col">
-                              <span className="uppercase tracking-wider font-semibold text-[8px] text-slate-300">Ingresó al sistema</span>
-                              {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top border-l border-gray-50">
-                            <div className="text-xs text-slate-700 mb-1">
-                              <span className="font-semibold text-slate-400 text-[10px] uppercase tracking-wider block mb-0.5">C.I.</span>
-                              {lead.cedula ? <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">{lead.cedula}</span> : <span className="text-slate-300 italic">No registrada</span>}
-                            </div>
-                            <div className="text-xs text-slate-700">
-                              <span className="font-semibold text-slate-400 text-[10px] uppercase tracking-wider block mb-0.5">Edad</span>
-                              {lead.edad ? <span>{lead.edad} años</span> : <span className="text-slate-300 italic">No registrada</span>}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top border-l border-gray-50">
-                            <div className="flex flex-col items-start gap-1.5">
-                              {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-purple-100 text-purple-700 whitespace-nowrap">{t}</span>)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top border-l border-gray-50">
-                            <div className="flex flex-col gap-1 text-xs">
-                              <span className="text-slate-600 flex justify-between w-24"><strong className="text-slate-400">Peso:</strong> <span>{lead.initial_weight || '-'} kg</span></span>
-                              <span className="text-slate-600 flex justify-between w-24"><strong className="text-slate-400">Est:</strong> <span>{lead.height || '-'} m</span></span>
-                              <span className="text-slate-600 flex justify-between w-24 items-center"><strong className="text-slate-400">IMC:</strong> <span className="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px]">{lead.bmi || '-'}</span></span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top border-l border-gray-50">
-                            <label className="text-[10px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider">Peso Actual</label>
-                            <div className="flex flex-col items-start gap-2">
-                              <div className="font-mono text-lg font-bold text-purple-700">
-                                {lead.final_weight ? `${lead.final_weight} kg` : '-'}
+                        <Fragment key={lead.id}>
+                          <tr onDoubleClick={() => handleRowDoubleClick(lead)} className="transition hover:bg-purple-50/40 cursor-pointer group">
+                            <td className="px-4 md:px-6 py-4 align-top">
+                              <div className="font-bold text-slate-800">{lead.name}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
+                              {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
+                              {lead.username === 'Registro Manual' && <span className="text-[11px] text-slate-400 mt-1 block font-medium">📝 Registro Manual</span>}
+                              <div className="text-[9px] text-slate-400 mt-2 font-mono flex flex-col hidden md:flex">
+                                <span className="uppercase tracking-wider font-semibold text-[8px] text-slate-300">Ingresó</span>
+                                {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit' })}
                               </div>
-                              <button onClick={(e) => { e.stopPropagation(); setActiveWeightLead(lead); setWeightModalOpen(true); }} className="text-[10px] font-bold bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg border border-purple-200 hover:bg-purple-100 transition shadow-sm">
-                                ⚖️ Historial y Actualizar
+                            </td>
+                            <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
+                              <div className="text-xs text-slate-600"><span className="text-slate-400 font-mono text-[10px]">CI:</span> {lead.cedula || 'N/A'}</div>
+                              <div className="text-xs text-slate-600 mt-1"><span className="text-slate-400 font-mono text-[10px]">Edad:</span> {lead.edad ? `${lead.edad} años` : 'N/A'}</div>
+                              <div className="text-xs text-slate-600 mt-1"><span className="text-slate-400 font-mono text-[10px]">Sexo:</span> {lead.sexo || 'N/A'}</div>
+                            </td>
+                            <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
+                              <div className="flex flex-wrap gap-1">
+                                {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">{t}</span>)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
+                              <div className="text-sm font-bold text-slate-800">{lead.initial_weight ? `${lead.initial_weight} kg` : '-'}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{lead.height ? `${lead.height} m` : '-'}</div>
+                              {lead.bmi && <div className="text-[11px] font-bold text-purple-600 mt-1.5 bg-purple-50 inline-block px-1.5 py-0.5 rounded">IMC: {lead.bmi}</div>}
+                            </td>
+                            <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
+                              <div className="text-sm font-bold text-green-600">{lead.final_weight ? `${lead.final_weight} kg` : (lead.initial_weight ? `${lead.initial_weight} kg` : '-')}</div>
+                              {lead.initial_weight && lead.final_weight && lead.initial_weight - lead.final_weight > 0 && (
+                                <div className="text-[11px] font-bold text-green-600 mt-1 flex items-center gap-1 bg-green-50 inline-block px-1.5 py-0.5 rounded">
+                                  ↓ {(lead.initial_weight - lead.final_weight).toFixed(1)} kg
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 align-top text-center border-l border-purple-50 hidden md:table-cell">
+                              <button onClick={(e) => { e.stopPropagation(); setActiveWeightLead(lead); setWeightModalOpen(true); }} className="text-xs bg-white text-purple-700 px-4 py-2 rounded-lg border border-purple-200 hover:bg-purple-50 transition-colors font-semibold shadow-sm">
+                                Historial ({parseHistory(lead.weight_history).length})
                               </button>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-top text-center border-l border-gray-50">
-                            <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs font-bold bg-white text-purple-700 px-4 py-2 rounded-lg border border-purple-200 hover:bg-purple-50 transition shadow-sm w-full">
-                              Ver Notas ({parseNotes(lead.notes).length})
-                            </button>
-                          </td>
-                        </tr>
+                            </td>
+                            {/* Botón Detalles Móvil */}
+                            <td className="px-4 py-4 align-middle text-right md:hidden">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setExpandedRowId(expandedRowId === lead.id ? null : lead.id); }}
+                                className={`text-[11px] font-bold px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${expandedRowId === lead.id ? 'bg-purple-200 text-purple-800' : 'bg-purple-600 text-white shadow-sm'}`}
+                              >
+                                {expandedRowId === lead.id ? 'Ocultar' : 'Ver Detalles'}
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Fila expandible para Móviles (Pacientes) */}
+                          {expandedRowId === lead.id && (
+                            <tr className="md:hidden bg-purple-50/60 border-b border-purple-100">
+                              <td colSpan="2" className="px-4 py-5 shadow-inner">
+                                <div className="flex flex-col gap-4">
+                                  {/* Info Identidad */}
+                                  <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-lg border border-purple-100 shadow-sm text-center">
+                                    <div><span className="block text-[9px] text-slate-400 uppercase font-bold">CI</span><span className="text-xs font-mono font-bold text-slate-700">{lead.cedula || 'N/A'}</span></div>
+                                    <div className="border-x border-gray-100"><span className="block text-[9px] text-slate-400 uppercase font-bold">Edad</span><span className="text-xs font-mono font-bold text-slate-700">{lead.edad ? `${lead.edad}a` : 'N/A'}</span></div>
+                                    <div><span className="block text-[9px] text-slate-400 uppercase font-bold">Sexo</span><span className="text-xs font-mono font-bold text-slate-700">{lead.sexo || 'N/A'}</span></div>
+                                  </div>
+
+                                  {/* Tratamientos */}
+                                  <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Tratamientos Médicos</span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-1 text-[10px] font-bold rounded-full bg-purple-100 text-purple-800">{t}</span>)}
+                                    </div>
+                                  </div>
+
+                                  {/* Medidas y Evolución en cuadrícula */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-3 rounded-xl border border-purple-100 shadow-sm relative overflow-hidden">
+                                      <div className="absolute top-0 left-0 w-1 h-full bg-slate-400"></div>
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Base</span>
+                                      <div className="text-sm font-bold text-slate-800">{lead.initial_weight ? `${lead.initial_weight} kg` : '-'}</div>
+                                      <div className="text-[11px] text-slate-500 mt-0.5">{lead.height ? `${lead.height} m` : '-'}</div>
+                                      {lead.bmi && <div className="text-[11px] font-bold text-purple-600 mt-1">IMC: {lead.bmi}</div>}
+                                    </div>
+                                    <div className="bg-white p-3 rounded-xl border border-green-100 shadow-sm relative overflow-hidden">
+                                      <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Actual</span>
+                                      <div className="text-sm font-bold text-green-700">{lead.final_weight ? `${lead.final_weight} kg` : (lead.initial_weight ? `${lead.initial_weight} kg` : '-')}</div>
+                                      {lead.initial_weight && lead.final_weight && lead.initial_weight - lead.final_weight > 0 && (
+                                        <div className="text-[11px] font-bold text-green-600 mt-1.5 flex items-center gap-1 bg-green-50 w-max px-1.5 py-0.5 rounded">
+                                          ↓ {(lead.initial_weight - lead.final_weight).toFixed(1)} kg
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Botón Historial de Peso */}
+                                  <button onClick={(e) => { e.stopPropagation(); setActiveWeightLead(lead); setWeightModalOpen(true); }} className="w-full mt-1 text-xs bg-purple-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-purple-700 shadow-sm flex justify-center items-center">
+                                    Abrir Historial de Peso ({parseHistory(lead.weight_history).length})
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>

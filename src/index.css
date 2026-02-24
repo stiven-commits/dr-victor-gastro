@@ -140,3 +140,39 @@ body {
     gap: 6px;
   }
 }
+/* ========================================================= */
+/* ZOOM EXTREMO PARA CELDAS DE CALENDARIO (20 MINUTOS)      */
+/* ========================================================= */
+
+/* Altura gigante para cada ranura (Aprox 80px de alto) */
+.fc-timegrid-slot {
+  height: 5rem !important; 
+}
+
+/* Asegurar que la tarjeta de la cita crezca al mismo tamaño */
+.fc-timegrid-event {
+  min-height: 5rem !important; 
+  border-radius: 6px !important;
+}
+
+/* Quitar recortes para que el contenido fluya bien */
+.fc-event-main {
+  overflow: hidden !important;
+  padding: 4px !important;
+}
+
+/* Ajuste fino del texto interno para que respire */
+.fc-event-time {
+  font-size: 0.75rem !important;
+  margin-bottom: 4px !important;
+}
+
+.fc-event-title {
+  font-size: 0.85rem !important;
+  line-height: 1.3 !important;
+}
+
+/* Ajustar el contenedor interno personalizado que creamos en React */
+.fc-timegrid-event .group {
+  padding: 4px !important;
+}

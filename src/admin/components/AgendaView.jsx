@@ -142,14 +142,12 @@ export default function AgendaView({ API_KEY, leads }) {
       fetchEvents(); 
     }
   };
-
-  const handleEventClick = async (info) => {
-    const { event } = info;
+  const handleDeleteClick = async (event) => {
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas cancelar y eliminar la cita de: ${event.title}?`);
     
     if (confirmDelete) {
       const payload = { google_event_id: event.id };
-      event.remove(); // EliminaciÃƒÂ³n optimista de la pantalla
+      event.remove(); // Eliminación optimista de la pantalla
       
       try {
         await fetch(N8N_DELETE_APP_URL, {
@@ -162,6 +160,61 @@ export default function AgendaView({ API_KEY, leads }) {
         fetchEvents(); // Si falla, recargamos los eventos para restaurarlo
       }
     }
+  };
+  const renderEventContent = (eventInfo) => {
+    const lead = leads.find(l => l.id.toString() === eventInfo.event.extendedProps?.patient_id);
+    const cedula = lead?.cedula || 'N/A';
+    
+    // Extraemos el nombre limpio y el motivo original
+    const pName = eventInfo.event.extendedProps?.patient_name || eventInfo.event.title.replace('Consulta - ', '');
+    const motivo = eventInfo.event.title; // Lo que escribieron en "Motivo / Título"
+
+    // 1. Diseño ultra compacto para la Vista de Mes (Píldora azul para contraste)
+    if (eventInfo.view.type === 'dayGridMonth') {
+      return (
+        <div className="bg-[#0056b3] rounded px-1.5 py-0.5 text-[10px] md:text-[11px] font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis w-full shadow-sm">
+          {eventInfo.timeText} - {motivo}
+        </div>
+      );
+    }
+
+    // 2. Diseño expandido para la Vista de Semana y Día
+    return (
+      <div className="flex flex-col relative p-1 md:p-1.5 w-full h-full overflow-hidden text-white group cursor-grab active:cursor-grabbing">
+        {/* Botón Eliminar (X) */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation(); 
+            handleDeleteClick(eventInfo.event);
+          }}
+          className="absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white w-5 h-5 md:w-6 md:h-6 rounded-bl-lg flex items-center justify-center z-20 transition-colors shadow-sm cursor-pointer opacity-90 hover:opacity-100"
+          title="Eliminar cita"
+        >
+          ✕
+        </button>
+        
+        {/* Hora */}
+        <div className="text-[10px] md:text-[11px] font-semibold opacity-90 pr-5">{eventInfo.timeText}</div>
+        
+        {/* Nombre del Paciente */}
+        <div className="text-[11px] md:text-[13px] font-bold leading-tight mt-0.5 whitespace-normal">
+          {pName}
+        </div>
+        
+        {/* Título / Motivo de la Cita */}
+        <div className="text-[10px] md:text-[11px] text-blue-100 font-medium italic leading-tight mt-0.5 whitespace-normal">
+          {motivo}
+        </div>
+
+        {/* Cédula */}
+        <div className="text-[9px] md:text-[10px] mt-auto pt-1">
+          <span className="font-mono bg-black/10 inline-block px-1 py-0.5 rounded w-max">
+            CI: {cedula}
+          </span>
+        </div>
+      </div>
+    );
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#0056b3]" /></div>;
@@ -182,8 +235,9 @@ export default function AgendaView({ API_KEY, leads }) {
         events={events}
         editable={true}
         eventDrop={handleEventDrop}
-        eventClick={handleEventClick}
-        height="700px"
+        eventContent={renderEventContent}
+        height="calc(100vh - 160px)"
+        expandRows={true}
         slotMinTime="08:00:00"
         slotMaxTime="16:00:00"
         slotDuration="00:20:00"
