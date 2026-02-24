@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
@@ -23,6 +23,7 @@ export default function Dashboard() {
   });
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Estados de Filtros y Paginación
   const [searchTerm, setSearchTerm] = useState('');
@@ -333,16 +334,24 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen font-sans bg-gray-50">
-      <Sidebar currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} />
+      <Sidebar currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
 
-      <main className="flex-1 p-8">
-        <header className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">
-            {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : 'Auditoría del Sistema'}
-          </h1>
+      {/* min-w-0 es la clave para evitar que las tablas desborden el ancho del móvil */}
+      <main className="flex-1 min-w-0 p-4 md:p-8">
+        <header className="flex items-center justify-between mb-6 md:mb-8">
+          <div className="flex items-center gap-3">
+            {/* Botón Hamburguesa solo visible en móvil */}
+            <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-600 md:hidden hover:bg-slate-100 rounded-lg transition">
+              <Menu size={24} />
+            </button>
+            <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">
+              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : 'Auditoría'}
+            </h1>
+          </div>
           {activeTab !== 'audit' && activeTab !== 'agenda' && (
-            <button onClick={() => setAddModalOpen(true)} className="bg-[#0056b3] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
-              <Plus size={20} /> Añadir Registro
+            <button onClick={() => setAddModalOpen(true)} className="bg-[#0056b3] text-white px-3 md:px-5 py-2 md:py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-1 md:gap-2 shadow-sm text-sm md:text-base whitespace-nowrap">
+              <Plus size={20} className="hidden md:block" /><Plus size={16} className="md:hidden" /> 
+              <span className="hidden md:inline">Añadir Registro</span><span className="md:hidden">Añadir</span>
             </button>
           )}
         </header>
