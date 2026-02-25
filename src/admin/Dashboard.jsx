@@ -13,23 +13,27 @@ import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirma
 import { TREATMENT_OPTIONS, MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes, parseHistory } from './utils/helpers';
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  
-  // Estados Generales
   const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTreatment, setFilterTreatment] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('crmActiveTab') || 'leads';
+    const savedTab = localStorage.getItem('crmActiveTab');
+    if (savedTab === 'agenda') return 'leads';
+    return savedTab || 'leads';
   });
+
+  // ESTOS SON LOS ESTADOS QUE FALTABAN:
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState(null);
+  const [dbTreatments, setDbTreatments] = useState([]); 
+
+  // ... (aquí continúan los demás estados como currentPage, addModalOpen, etc.)
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedRowId, setExpandedRowId] = useState(null); // Nuevo estado para acordeón móvil
-
-  // Estados de Filtros y Paginación
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterTreatment, setFilterTreatment] = useState('Todos');
-  const [filterStatus, setFilterStatus] = useState('Todos'); 
   const [currentPage, setCurrentPage] = useState(1);
 
   // Estados de Modales
@@ -68,10 +72,13 @@ export default function Dashboard() {
   const N8N_POST_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
   const N8N_AUDIT_URL = 'https://victorbot.sosmarketing.agency/webhook/api-audit-logs'; 
   const N8N_CREATE_URL = 'https://victorbot.sosmarketing.agency/webhook/create-lead';
-  const N8N_DELETE_URL = 'https://victorbot.sosmarketing.agency/webhook/delete-lead';
+    const N8N_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments'; // <-- NUEVA RUTA
 
   // Efectos (Carga de datos)
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => { 
+    fetchLeads(); 
+    fetchTreatments(); // <-- LLAMAMOS A LA NUEVA FUNCIÓN AL INICIAR
+  }, []);
   useEffect(() => {
     localStorage.setItem('crmActiveTab', activeTab);
   }, [activeTab]);
@@ -96,6 +103,19 @@ export default function Dashboard() {
       setLeads(Array.isArray(data) ? data : data[0] || [data] || []);
       setLoading(false);
     } catch (error) { setLeads([]); setLoading(false); }
+  };
+
+  const fetchTreatments = async () => {
+    try {
+      const response = await fetch(`${N8N_TREATMENTS_URL}?t=${new Date().getTime()}`, {
+        method: 'GET', headers: { 'Authorization': API_KEY }
+      });
+      const data = await response.json();
+      setDbTreatments(Array.isArray(data) ? data : []);
+    } catch (error) { 
+      console.error("Error cargando tratamientos:", error);
+      setDbTreatments([]); 
+    }
   };
 
   const fetchAuditLogs = async () => {
@@ -417,7 +437,6 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4 align-top hidden md:table-cell">
                               <div className="flex flex-col gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
                                 <button onClick={(e) => handlePatientClick(e, lead)} className={`px-3 py-1.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
                               </div>
                             </td>
@@ -453,8 +472,7 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                   <div className="flex gap-2">
-                                    <button onClick={(e) => { e.stopPropagation(); updateLead(lead.id, { is_contacted: !lead.is_contacted }); }} className={`flex-1 px-3 py-2.5 text-[11px] font-bold rounded border transition-colors ${lead.is_contacted ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>{lead.is_contacted ? '✅ Contactado' : '🔔 Por Contactar'}</button>
-                                    <button onClick={(e) => handlePatientClick(e, lead)} className={`flex-1 px-3 py-2.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 shadow-sm'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar Paciente'}</button>
+                                    <button onClick={(e) => handlePatientClick(e, lead)} className={`w-full px-3 py-2.5 text-[11px] font-bold rounded border transition-colors ${lead.is_patient ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-white text-slate-500 border-slate-200 shadow-sm'}`}>{lead.is_patient ? '⭐ Paciente' : 'Marcar como Paciente Clínico'}</button>
                                   </div>
                                   <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="w-full text-xs bg-white text-blue-700 px-4 py-2.5 rounded-lg border border-blue-200 shadow-sm font-bold mt-1">
                                     Abrir Notas ({parseNotes(lead.notes).length})
@@ -480,6 +498,7 @@ export default function Dashboard() {
                         <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Medidas Base</th>
                         <th className="px-6 py-4 font-semibold border-l border-purple-100 hidden md:table-cell">Evolución</th>
                         <th className="px-6 py-4 font-semibold text-center border-l border-purple-100 hidden md:table-cell">Historial</th>
+                        <th className="px-6 py-4 font-semibold text-center border-l border-purple-100 hidden md:table-cell">Notas</th>
                         <th className="px-4 py-4 font-semibold text-right md:hidden">Expediente</th>
                       </tr>
                     </thead>
@@ -523,6 +542,12 @@ export default function Dashboard() {
                             <td className="px-6 py-4 align-top text-center border-l border-purple-50 hidden md:table-cell">
                               <button onClick={(e) => { e.stopPropagation(); setActiveWeightLead(lead); setWeightModalOpen(true); }} className="text-xs bg-white text-purple-700 px-4 py-2 rounded-lg border border-purple-200 hover:bg-purple-50 transition-colors font-semibold shadow-sm">
                                 Historial ({parseHistory(lead.weight_history).length})
+                              </button>
+                            </td>
+                            {/* NUEVA COLUMNA DE NOTAS */}
+                            <td className="px-6 py-4 align-top text-center border-l border-purple-50 hidden md:table-cell">
+                              <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="text-xs bg-white text-purple-700 px-4 py-2 rounded-lg border border-purple-200 hover:bg-purple-50 transition-colors font-semibold shadow-sm">
+                                Notas ({parseNotes(lead.notes).length})
                               </button>
                             </td>
                             {/* Botón Detalles Móvil */}
@@ -580,6 +605,11 @@ export default function Dashboard() {
                                   {/* Botón Historial de Peso */}
                                   <button onClick={(e) => { e.stopPropagation(); setActiveWeightLead(lead); setWeightModalOpen(true); }} className="w-full mt-1 text-xs bg-purple-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-purple-700 shadow-sm flex justify-center items-center">
                                     Abrir Historial de Peso ({parseHistory(lead.weight_history).length})
+                                  </button>
+                                  
+                                  {/* NUEVO Botón Notas Móvil */}
+                                  <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="w-full mt-1 text-xs bg-white text-purple-700 px-4 py-3 rounded-xl border border-purple-200 shadow-sm font-bold flex justify-center items-center">
+                                    Abrir Notas ({parseNotes(lead.notes).length})
                                   </button>
                                 </div>
                               </td>

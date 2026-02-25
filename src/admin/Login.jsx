@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
 import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
 
-// Nuestra base de datos local de usuarios
+// Nuestra base de datos local temporal (Próximamente migrará a PostgreSQL)
 const USERS = {
   'drvictor': { password: 'DRvictor2026', role: 'superadmin', name: 'Dr. Víctor' },
-  'asistente': { password: 'DR2026as', role: 'user', name: 'Asistente' },
-  'enfermeria1': { password: 'DR2026en', role: 'user', name: 'Enfermería 1' },
-  'enfermeria2': { password: 'DR2026en2', role: 'user', name: 'Enfermería 2' },
-  'enfermeria3': { password: 'DR2026en3', role: 'user', name: 'Enfermería 3' }
+  'yowbram': { password: 'User2026*', role: 'user', name: 'Yowbram' },
+  'dalber': { password: 'User2026*', role: 'user', name: 'Dalber' },
+  'guillermo': { password: 'User2026*', role: 'user', name: 'Guillermo' },
+  'kimberly': { password: 'User2026*', role: 'user', name: 'Kimberly' }
 };
 
 export default function Login() {

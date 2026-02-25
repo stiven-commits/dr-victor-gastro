@@ -39,9 +39,13 @@ export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLo
           <button onClick={() => handleTabClick('patients')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'patients' ? 'bg-[#0056b3] text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
             <HeartPulse className="w-5 h-5" /> <span className="font-medium">Pacientes Clínicos</span>
           </button>
+          
+          {/* BOTÓN DE AGENDA OCULTO TEMPORALMENTE
           <button onClick={() => handleTabClick('agenda')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'agenda' ? 'bg-[#0056b3] text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
             <Calendar className="w-5 h-5" /> <span className="font-medium">Agenda</span>
           </button>
+          */}
+
           {currentUser.role === 'superadmin' && (
             <button onClick={() => handleTabClick('audit')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'audit' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>
               <ShieldAlert className="w-5 h-5" /> <span className="font-medium">Registro Actividad</span>
