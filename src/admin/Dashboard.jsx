@@ -10,7 +10,7 @@ import Filters from './components/Filters';
 import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal } from './components/Modals';
 
 // Importar Utilidades
-import { TREATMENT_OPTIONS, MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes, parseHistory } from './utils/helpers';
+import { MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes, parseHistory } from './utils/helpers';
 
 export default function Dashboard() {
   const [leads, setLeads] = useState([]);
@@ -223,12 +223,11 @@ export default function Dashboard() {
 
   const handleRowDoubleClick = (lead) => {
     setLeadToEdit(lead);
-    const validTreatments = getTreatmentsArray(lead.treatment).filter(t => TREATMENT_OPTIONS.includes(t));
     setEditFormData({ 
       name: lead.name || '', 
       phone: lead.phone || '', 
       email: lead.email || '',
-      treatments: validTreatments,
+      treatments: getTreatmentsArray(lead.treatment),
       cedula: lead.cedula || '',
       edad: lead.edad || '',
       initial_weight: lead.initial_weight || '',
@@ -638,7 +637,7 @@ export default function Dashboard() {
       <EditLeadModal 
         isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} 
         editFormData={editFormData} setEditFormData={setEditFormData} 
-        handleSaveEdit={handleSaveEdit} leadToEdit={leadToEdit} setDeleteModalOpen={setDeleteModalOpen}
+        handleSaveEdit={handleSaveEdit} leadToEdit={leadToEdit} setDeleteModalOpen={setDeleteModalOpen} dbTreatments={dbTreatments}
       />
       <DeleteConfirmationModal 
         isOpen={deleteModalOpen} 
@@ -647,7 +646,7 @@ export default function Dashboard() {
         leadName={leadToEdit?.name} 
       />
       <NotesModal isOpen={notesModalOpen} onClose={() => setNotesModalOpen(false)} activeNotesLead={activeNotesLead} paginatedNotesModal={paginatedNotesModal} totalNotesPages={totalNotesPages} notesPage={notesPage} setNotesPage={setNotesPage} newNoteContent={newNoteContent} setNewNoteContent={setNewNoteContent} handleSaveNewNote={handleSaveNewNote} />
-      <AddManualModal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} newManualData={newManualData} setNewManualData={setNewManualData} handleCreateManual={handleCreateManual} />
+      <AddManualModal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} newManualData={newManualData} setNewManualData={setNewManualData} handleCreateManual={handleCreateManual} dbTreatments={dbTreatments} />
       <WeightModal 
         isOpen={weightModalOpen} onClose={() => setWeightModalOpen(false)} 
         activeWeightLead={activeWeightLead} newWeightValue={newWeightValue} 
