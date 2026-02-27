@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 
-// --- 1. IMPORTACIONES DE LA WEB PÚBLICA ---
+// --- 1. IMPORTACIONES DE LA WEB PÃšBLICA ---
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import DoctorProfile from './components/DoctorProfile'
@@ -13,14 +13,15 @@ import Features from './components/Features'
 import Testimonials from './components/Testimonials'
 import ContactMap from './components/ContactMap'
 import Footer from './components/Footer'
-import ThankYou from './components/ThankYou' // Nuestra página de gracias para el Pixel
+import ThankYou from './components/ThankYou' // Nuestra pÃ¡gina de gracias para el Pixel
+import NotFound from './pages/NotFound'
 
 // --- 2. IMPORTACIONES DEL CRM (ADMINISTRADOR) ---
 import Login from './admin/Login'
 import Dashboard from './admin/Dashboard'
 import RequireAuth from './admin/RequireAuth'
 
-// --- 3. COMPONENTE QUE AGRUPA TODA TU PÁGINA DE INICIO ---
+// --- 3. COMPONENTE QUE AGRUPA TODA TU PÃGINA DE INICIO ---
 const Home = () => (
   <main>
     <Hero />
@@ -43,10 +44,10 @@ function App() {
   // Detectamos si la URL contiene "login" o "dashboard"
   const isAdminRoute = location.pathname.includes('/login') || location.pathname.includes('/dashboard')
 
-  // Escudo protector: Ocultar instalación PWA en la web pública
+  // Escudo protector: Ocultar instalaciÃ³n PWA en la web pÃºblica
   useEffect(() => {
     const handleInstallPrompt = (e) => {
-      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalación
+      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalaciÃ³n
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/dashboard')) {
         e.preventDefault();
       }
@@ -59,11 +60,11 @@ function App() {
   return (
     <div className="min-h-screen bg-white font-sans">
       
-      {/* Si NO estamos en el CRM, mostramos el menú público */}
+      {/* Si NO estamos en el CRM, mostramos el menÃº pÃºblico */}
       {!isAdminRoute && <Navbar />}
 
       <Routes>
-        {/* Rutas Públicas */}
+        {/* Rutas PÃºblicas */}
         <Route path="/" element={<Home />} />
         <Route path="/gracias" element={<ThankYou />} />
 
@@ -74,9 +75,10 @@ function App() {
             <Dashboard />
           </RequireAuth>
         } />
+        <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Si NO estamos en el CRM, mostramos el footer público */}
+      {/* Si NO estamos en el CRM, mostramos el footer pÃºblico */}
       {!isAdminRoute && <Footer />}
       
     </div>
@@ -84,3 +86,4 @@ function App() {
 }
 
 export default App
+
