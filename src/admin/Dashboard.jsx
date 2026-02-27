@@ -12,12 +12,14 @@ import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirma
 
 // Importar Utilidades
 import { MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes, parseHistory } from './utils/helpers';
+const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
 export default function Dashboard() {
   const [leads, setLeads] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTreatment, setFilterTreatment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterState, setFilterState] = useState('Todos');
   
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('crmActiveTab');
@@ -89,7 +91,7 @@ export default function Dashboard() {
     localStorage.setItem('crmActiveTab', activeTab);
   }, [activeTab]);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab]);
-  useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus]); 
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, filterTreatment, filterStatus, filterState]); 
 // Efecto para actualizar el título de la pestaña del navegador
   useEffect(() => {
     let title = 'CRM Dr. Víctor';
@@ -200,6 +202,12 @@ export default function Dashboard() {
       bmi: newManualData.is_patient ? bmiValue : null,
       sexo: newManualData.is_patient ? (newManualData.sexo || null) : null,
       medical_history: newManualData.is_patient ? (newManualData.medical_history || null) : null,
+      state: newManualData.is_patient ? (newManualData.state || null) : null,
+      address: newManualData.is_patient ? (newManualData.address || null) : null,
+      smokes: newManualData.is_patient ? (newManualData.smokes || null) : null,
+      asthmatic: newManualData.is_patient ? (newManualData.asthmatic || null) : null,
+      allergic: newManualData.is_patient ? (newManualData.allergic || null) : null,
+      allergies_detail: newManualData.is_patient ? (newManualData.allergies_detail || null) : null,
       updated_by: currentUser.username
     };
 
@@ -246,7 +254,13 @@ export default function Dashboard() {
     updateLead(selectedLeadId, { 
       is_patient: true, initial_weight: w || null, height: h || null, bmi: bmiValue,
       cedula: medicalData.cedula || null, edad: medicalData.edad ? parseInt(medicalData.edad) : null,
-      sexo: medicalData.sexo || null, medical_history: medicalData.medical_history || null
+      sexo: medicalData.sexo || null, medical_history: medicalData.medical_history || null,
+      state: medicalData.state || null,
+      address: medicalData.address || null,
+      smokes: medicalData.smokes || null,
+      asthmatic: medicalData.asthmatic || null,
+      allergic: medicalData.allergic || null,
+      allergies_detail: medicalData.allergies_detail || null
     });
     setModalOpen(false);
   };
@@ -266,7 +280,13 @@ export default function Dashboard() {
       initial_weight: lead.initial_weight || '',
       height: lead.height || '',
       sexo: lead.sexo || '',
-      medical_history: lead.medical_history || ''
+      medical_history: lead.medical_history || '',
+      address: lead.address || '',
+      state: lead.state || '',
+      smokes: lead.smokes || '',
+      asthmatic: lead.asthmatic || '',
+      allergic: lead.allergic || '',
+      allergies_detail: lead.allergies_detail || ''
     });
     setEditModalOpen(true);
   };
@@ -318,14 +338,21 @@ export default function Dashboard() {
         email: editFormData.email || null,
         cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
         initial_weight: w || null, height: h || null, bmi: bmiValue,
-        sexo: editFormData.sexo || null, medical_history: editFormData.medical_history || null
+        sexo: editFormData.sexo || null, medical_history: editFormData.medical_history || null,
+        state: editFormData.state || null,
+        address: editFormData.address || null,
+        smokes: editFormData.smokes || null,
+        asthmatic: editFormData.asthmatic || null,
+        allergic: editFormData.allergic || null,
+        allergies_detail: editFormData.allergies_detail || null
       });
       setEditModalOpen(false);
     } else {
       updateLead(leadToEdit.id, { 
         name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
         email: editFormData.email || null,
-        cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null
+        cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
+        state: editFormData.state || null
       });
       setEditModalOpen(false);
       
@@ -383,21 +410,29 @@ export default function Dashboard() {
 
   // Lógica de Filtrado
   const filteredLeads = leads.filter((lead) => {
-    if (filterTreatment !== 'Todos' && lead.treatment && !lead.treatment.includes(filterTreatment)) return false;
-    if (filterStatus === 'Por Contactar' && (lead.is_contacted || lead.is_patient)) return false;
-    if (filterStatus === 'Contactados' && !lead.is_contacted) return false;
-    if (filterStatus === 'Solo Leads' && lead.is_patient) return false;
-    if (filterStatus === 'Solo Pacientes' && !lead.is_patient) return false;
+    const matchesTreatment = filterTreatment === 'Todos' || !lead.treatment || lead.treatment.includes(filterTreatment);
+    const matchesStatus =
+      (filterStatus === '' || filterStatus === 'Todos') ||
+      (filterStatus === 'Por Contactar' && !lead.is_contacted && !lead.is_patient) ||
+      (filterStatus === 'Contactados' && !!lead.is_contacted) ||
+      (filterStatus === 'Solo Leads' && !lead.is_patient) ||
+      (filterStatus === 'Solo Pacientes' && !!lead.is_patient);
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      return lead.name?.toLowerCase().includes(term) || lead.phone?.toLowerCase().includes(term) || lead.username?.toLowerCase().includes(term) || lead.treatment?.toLowerCase().includes(term) || lead.cedula?.toLowerCase().includes(term);
-    }
-    return true; 
+    const term = (searchTerm || '').toLowerCase();
+    const matchesSearch =
+      !term ||
+      lead.name?.toLowerCase().includes(term) ||
+      lead.phone?.toLowerCase().includes(term) ||
+      lead.username?.toLowerCase().includes(term) ||
+      lead.treatment?.toLowerCase().includes(term) ||
+      lead.cedula?.toLowerCase().includes(term);
+
+    const matchesState = filterState === 'Todos' || lead.state === filterState;
+    return matchesSearch && matchesStatus && matchesTreatment && matchesState;
   });
 
   const patientsList = filteredLeads.filter(l => l.is_patient);
-  const uncontactedCount = leads.filter(l => !l.is_patient && !l.is_contacted).length;
+  const prospectsCount = leads.filter(l => !l.is_patient).length;
 
   const ITEMS_PER_PAGE = 7;
   const totalItems = activeTab === 'leads' ? filteredLeads.length : patientsList.length;
@@ -431,7 +466,7 @@ export default function Dashboard() {
               <Menu size={24} />
             </button>
             <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">
-              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : 'Auditoría'}
+              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : activeTab === 'finances' ? 'Finanzas / Pagos' : 'Auditoría'}
             </h1>
           </div>
           {activeTab !== 'audit' && activeTab !== 'agenda' && (
@@ -442,10 +477,10 @@ export default function Dashboard() {
           )}
         </header>
 
-        {activeTab !== 'audit' && activeTab !== 'agenda' && (
+        {(activeTab === 'leads' || activeTab === 'patients') && (
           <>
-            <MetricsCards loading={loading} totalLeads={leads.length} uncontactedCount={uncontactedCount} activePatients={leads.filter(l => l.is_patient).length} />
-            <Filters searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterTreatment={filterTreatment} setFilterTreatment={setFilterTreatment} uniqueTreatments={uniqueTreatments} />
+            <MetricsCards loading={loading} totalLeads={leads.length} prospectsCount={prospectsCount} activePatients={leads.filter(l => l.is_patient).length} />
+            <Filters searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterTreatment={filterTreatment} setFilterTreatment={setFilterTreatment} dbTreatments={dbTreatments} filterState={filterState} setFilterState={setFilterState} />
           </>
         )}
 

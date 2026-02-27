@@ -1,29 +1,42 @@
 ﻿import { useEffect, useState } from 'react';
-import { Search, CreditCard, X, Loader2 } from 'lucide-react';
+import { Search, CreditCard, X, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
 const GET_URL = 'https://victorbot.sosmarketing.agency/webhook/api-finances';
 const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-payment';
+const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
 const getStatus = (row) => row?.payment_status || row?.status || 'Pendiente';
 const getPatientName = (row) => row?.patient_name || row?.name || 'N/A';
 const getCedula = (row) => row?.cedula || row?.patient_cedula || 'N/A';
-const getTreatment = (row) => row?.treatment_name || row?.treatment || 'N/A';
-const getAgreed = (row) => Number(row?.agreed_price_usd ?? row?.total_price_usd ?? row?.agreed_amount_usd ?? 0);
-const getPaid = (row) => Number(row?.paid_amount_usd ?? row?.total_paid_usd ?? row?.paid_usd ?? 0);
-const getBalance = (row) => {
-  const directBalance = row?.balance_usd ?? row?.pending_amount_usd;
-  if (directBalance !== undefined && directBalance !== null) return Number(directBalance);
-  return Math.max(0, getAgreed(row) - getPaid(row));
-};
 const getLeadTreatmentId = (row) => row?.lead_treatment_id || row?.id;
-
-const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`;
+const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const getStatusBadge = (status) => {
   if (status === 'Pagado') return 'bg-green-100 text-green-700 border-green-200';
   if (status === 'Parcial') return 'bg-amber-100 text-amber-700 border-amber-200';
   return 'bg-rose-100 text-rose-700 border-rose-200';
+};
+
+const formatNumberInput = (val) => {
+  if (!val) return '';
+  // Dejar solo números y comas
+  let cleaned = val.replace(/[^0-9,]/g, '');
+  let parts = cleaned.split(',');
+  let intPart = parts[0];
+  let decPart = parts.length > 1 ? parts[1].substring(0, 2) : null;
+  // Quitar ceros a la izquierda
+  if (intPart.length > 1 && intPart.startsWith('0')) {
+    intPart = parseInt(intPart, 10).toString();
+    if (intPart === 'NaN') intPart = '0';
+  }
+  // Poner puntos de miles
+  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return parts.length > 1 ? `${intPart},${decPart}` : intPart;
+};
+const parseLocaleNumber = (val) => {
+  if (!val) return NaN;
+  return parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
 };
 
 export default function FinancesView() {
@@ -33,6 +46,16 @@ export default function FinancesView() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
+  const [filterState, setFilterState] = useState('Todos');
+
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+  const [startDate, setStartDate] = useState(firstDay);
+  const [endDate, setEndDate] = useState(lastDay);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -44,6 +67,8 @@ export default function FinancesView() {
     amount_bs: ''
   });
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [detailsRecord, setDetailsRecord] = useState(null);
 
   const fetchFinances = async () => {
     setLoading(true);
@@ -52,18 +77,18 @@ export default function FinancesView() {
         method: 'GET',
         headers: { 'Authorization': API_KEY, 'Accept': 'application/json' }
       });
-      
+
       const text = await response.text();
       if (!text) {
         setFinances([]);
         return;
       }
-      
+
       const data = JSON.parse(text);
       const normalizedData = Array.isArray(data) ? (Array.isArray(data[0]) ? data[0] : data) : [];
       setFinances(normalizedData);
     } catch (error) {
-      console.error("Error cargando finanzas:", error);
+      console.error('Error cargando finanzas:', error);
       setFinances([]);
     } finally {
       setLoading(false);
@@ -75,15 +100,20 @@ export default function FinancesView() {
   }, []);
 
   useEffect(() => {
-    const usd = parseFloat(paymentForm.amount_usd);
-    const bcv = parseFloat(paymentForm.exchange_rate_bcv);
-
+    const usd = parseLocaleNumber(paymentForm.amount_usd);
+    const bcv = parseLocaleNumber(paymentForm.exchange_rate_bcv);
     if (!Number.isNaN(usd) && usd > 0 && !Number.isNaN(bcv) && bcv > 0) {
-      setPaymentForm((prev) => ({ ...prev, amount_bs: (usd * bcv).toFixed(2) }));
+      const bsValue = (usd * bcv).toFixed(2);
+      const formattedBs = bsValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      setPaymentForm((prev) => ({ ...prev, amount_bs: formattedBs }));
     } else {
       setPaymentForm((prev) => ({ ...prev, amount_bs: '' }));
     }
   }, [paymentForm.amount_usd, paymentForm.exchange_rate_bcv]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterState, startDate, endDate]);
 
   const handleOpenPaymentModal = (record) => {
     setSelectedRecord(record);
@@ -112,17 +142,21 @@ export default function FinancesView() {
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     if (!selectedRecord) return;
-
+    const parsedUsd = parseLocaleNumber(paymentForm.amount_usd);
+    if (Number.isNaN(parsedUsd) || parsedUsd <= 0) {
+      alert('Por favor ingrese un monto válido.');
+      return;
+    }
     setSubmittingPayment(true);
     try {
       const payload = {
-        lead_treatment_id: selectedRecord.lead_treatment_id,
-        amount_usd: parseFloat(paymentForm.amount_usd),
+        lead_treatment_id: getLeadTreatmentId(selectedRecord),
+        amount_usd: parsedUsd,
         payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || 'No aplica',
-        exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseFloat(paymentForm.exchange_rate_bcv) : null,
-        amount_bs: paymentForm.amount_bs ? parseFloat(paymentForm.amount_bs) : null,
-        registered_by: currentUser.name || currentUser.username || 'Admin'
+        reference_number: paymentForm.payment_method === 'Efectivo USD' ? '' : paymentForm.reference_number,
+        exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseLocaleNumber(paymentForm.exchange_rate_bcv) : null,
+        amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
+        registered_by: currentUser?.name || 'Sistema'
       };
 
       await fetch(POST_URL, {
@@ -154,35 +188,109 @@ export default function FinancesView() {
       getPatientName(row).toLowerCase().includes(term) ||
       getCedula(row).toLowerCase().includes(term);
 
-    return matchesStatus && matchesSearch;
+    const matchesState = filterState === 'Todos' || row.state === filterState;
+    return matchesStatus && matchesSearch && matchesState;
   });
+
+  let incomeByMethod = {};
+  let incomeByTreatment = {};
+  let totalPeriodIncome = 0;
+  let totalPendingBalance = 0;
+
+  finances.forEach(item => {
+    totalPendingBalance += parseFloat(item.balance || 0);
+    const payments = item.payments_history || [];
+    payments.forEach(p => {
+      const pDate = new Date(p.payment_date).toISOString().split('T')[0];
+      if ((!startDate || pDate >= startDate) && (!endDate || pDate <= endDate)) {
+        const amt = parseFloat(p.amount_usd || 0);
+        totalPeriodIncome += amt;
+        const method = p.payment_method || 'Otro';
+        incomeByMethod[method] = (incomeByMethod[method] || 0) + amt;
+        const tName = item.treatment_name || 'Otro';
+        incomeByTreatment[tName] = (incomeByTreatment[tName] || 0) + amt;
+      }
+    });
+  });
+
+  const totalPages = Math.ceil(filteredFinances.length / ITEMS_PER_PAGE) || 1;
+  const paginatedFinances = filteredFinances.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const selectedBalance = parseFloat(selectedRecord?.balance || 0);
   const showBsFields = paymentForm.payment_method === 'Pago Móvil' || paymentForm.payment_method === 'Transferencia (Bs)';
 
   return (
     <div className="p-4 md:p-6">
-      <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-5">
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="flex flex-col md:flex-row gap-4 items-end mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 text-[#0056b3] font-bold"><Calendar className="w-5 h-5"/> Rango de Fechas:</div>
+        <div><label className="text-xs font-semibold text-slate-500 block mb-1">Desde</label><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
+        <div><label className="text-xs font-semibold text-slate-500 block mb-1">Hasta</label><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
+        <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-sm text-slate-500 hover:text-[#0056b3] font-medium px-2 py-2">Quitar filtro</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-48">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresos por Método</h3>
+          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+            {Object.entries(incomeByMethod).length === 0 ? <p className="text-sm text-slate-400 italic">Sin ingresos en el periodo.</p> : Object.entries(incomeByMethod).map(([method, amount]) => (
+              <div key={method} className="flex justify-between text-sm"><span className="font-medium text-slate-600">{method}</span><span className="font-bold text-slate-800">${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-bold text-[#0056b3]"><span>TOTAL</span><span>${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-48">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresos por Procedimiento</h3>
+          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+            {Object.entries(incomeByTreatment).length === 0 ? <p className="text-sm text-slate-400 italic">Sin ingresos en el periodo.</p> : Object.entries(incomeByTreatment).map(([treatment, amount]) => (
+              <div key={treatment} className="flex justify-between text-sm"><span className="font-medium text-slate-600 truncate mr-2" title={treatment}>{treatment}</span><span className="font-bold text-slate-800">${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-bold text-[#0056b3]"><span>TOTAL</span><span>${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+        </div>
+
+        <div className="bg-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-center text-white h-48 relative overflow-hidden">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
+          <div className="mb-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingreso del Periodo</h3>
+            <p className="text-3xl font-bold text-green-400">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Cuentas por Cobrar (Global)</h3>
+            <p className="text-xl font-medium text-rose-300">${totalPendingBalance.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="relative md:col-span-1">
+          <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre o cédula..."
-            className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3]"
           />
         </div>
-
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="w-full md:w-52 py-2.5 px-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white"
+          className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"
         >
-          <option value="Todos">Todos</option>
-          <option value="Pendiente">Pendiente</option>
-          <option value="Parcial">Parcial</option>
-          <option value="Pagado">Pagado</option>
+          <option value="Todos">Edo. Pago: Todos</option>
+          <option value="Pendiente">Edo. Pago: Pendiente</option>
+          <option value="Parcial">Edo. Pago: Parcial</option>
+          <option value="Pagado">Edo. Pago: Pagado</option>
+        </select>
+
+        <select
+          value={filterState}
+          onChange={(e) => setFilterState(e.target.value)}
+          className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"
+        >
+          <option value="Todos">Locación: Todas</option>
+          {VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}
         </select>
       </div>
 
@@ -205,14 +313,14 @@ export default function FinancesView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredFinances.length === 0 ? (
+              {paginatedFinances.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-10 text-center text-slate-400">
                     No hay registros financieros para mostrar.
                   </td>
                 </tr>
               ) : (
-                filteredFinances.map((item, idx) => {
+                paginatedFinances.map((item, idx) => {
                   const status = item.payment_status || 'Pendiente';
                   const balance = parseFloat(item.balance || 0);
 
@@ -223,26 +331,27 @@ export default function FinancesView() {
                         <div className="text-xs text-slate-500 mt-0.5 font-mono">CI: {item.cedula || 'N/A'}</div>
                       </td>
                       <td className="px-4 py-3 align-top text-slate-700">{item.treatment_name}</td>
-                      <td className="px-4 py-3 align-top font-semibold text-slate-800">$<span className="font-mono">{parseFloat(item.agreed_price || 0).toLocaleString('en-US')}</span></td>
-                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-green-600">{parseFloat(item.amount_paid || 0).toLocaleString('en-US')}</span></td>
-                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{parseFloat(item.balance || 0).toLocaleString('en-US')}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold text-slate-800">$<span className="font-mono">{parseFloat(item.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-green-600">{parseFloat(item.amount_paid || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{parseFloat(item.balance || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top">
                         <span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>
                           {item.payment_status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 align-top text-center">
-                        {balance > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) })}
-                            className="inline-flex items-center gap-2 bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition"
-                          >
-                            <CreditCard className="w-4 h-4" /> Registrar Pago
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">Sin acciones</span>
-                        )}
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {parseFloat(item.amount_paid || 0) > 0 && (
+                            <button type="button" onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+                              📋 Detalles
+                            </button>
+                          )}
+                          {balance > 0 && (
+                            <button type="button" onClick={() => handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) })} className="inline-flex items-center gap-1.5 bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition">
+                              <CreditCard className="w-4 h-4" /> Pagar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -252,6 +361,59 @@ export default function FinancesView() {
           </table>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center px-6 py-4 bg-white border border-t-0 border-gray-100 rounded-b-xl shadow-sm">
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-4 py-2 rounded-lg transition flex items-center gap-1"><ChevronLeft size={18}/> Anterior</button>
+          <span className="text-sm font-medium text-slate-500">Página {currentPage} de {totalPages}</span>
+          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-4 py-2 rounded-lg transition flex items-center gap-1">Siguiente <ChevronRight size={18}/></button>
+        </div>
+      )}
+
+      {isDetailsModalOpen && detailsRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl flex flex-col max-h-full">
+            <div className="flex items-center justify-between p-4 bg-slate-800 text-white">
+              <div>
+                <h3 className="font-bold text-lg">Historial de Pagos</h3>
+                <p className="text-xs text-slate-300">{getPatientName(detailsRecord)} - {detailsRecord.treatment_name}</p>
+              </div>
+              <button type="button" onClick={() => setIsDetailsModalOpen(false)} className="hover:text-red-400 p-1 transition"><X size={20} /></button>
+            </div>
+
+            <div className="p-5 overflow-y-auto bg-slate-50/50 flex-1 space-y-3">
+              {(!detailsRecord.payments_history || detailsRecord.payments_history.length === 0) ? (
+                <p className="text-center text-slate-400 py-10 text-sm">No hay pagos registrados.</p>
+              ) : (
+                detailsRecord.payments_history.map(payment => (
+                  <div key={payment.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm relative">
+                    <div className="flex justify-between items-start border-b border-gray-50 pb-3 mb-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha de pago</span>
+                        <span className="text-sm font-semibold text-slate-700">{new Date(payment.payment_date).toLocaleString('es-VE')}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-mono font-bold text-green-600">${parseFloat(payment.amount_usd || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Por: {payment.registered_by}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-xs text-slate-400 block">Método</span><span className="font-semibold text-slate-700">{payment.payment_method}</span></div>
+                      <div><span className="text-xs text-slate-400 block">Referencia</span><span className="font-mono text-slate-700">{payment.reference_number || 'N/A'}</span></div>
+                      {payment.amount_bs && (
+                        <>
+                          <div><span className="text-xs text-slate-400 block">Tasa BCV</span><span className="font-mono text-slate-700">Bs. {payment.exchange_rate_bcv}</span></div>
+                          <div><span className="text-xs text-slate-400 block">Monto Total Bs</span><span className="font-mono font-bold text-slate-800">Bs. {parseFloat(payment.amount_bs || 0).toLocaleString('es-VE')}</span></div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
@@ -272,14 +434,12 @@ export default function FinancesView() {
               <div>
                 <label className="block text-sm font-semibold mb-1 text-slate-700">Monto a Pagar USD</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={selectedRecord?.balance || 0}
+                  type="text"
                   required
                   value={paymentForm.amount_usd}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, amount_usd: e.target.value })}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount_usd: formatNumberInput(e.target.value) })}
                   className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]"
+                  placeholder="Ej: 1.500,50"
                 />
               </div>
 
@@ -318,22 +478,22 @@ export default function FinancesView() {
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-slate-700">Tasa BCV</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       required
                       value={paymentForm.exchange_rate_bcv}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, exchange_rate_bcv: e.target.value })}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, exchange_rate_bcv: formatNumberInput(e.target.value) })}
                       className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]"
+                      placeholder="Ej: 36,50"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-slate-700">Monto Bs</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       value={paymentForm.amount_bs}
                       readOnly
-                      className="w-full p-2.5 border border-gray-200 rounded-lg bg-slate-50 text-slate-700"
+                      className="w-full p-2.5 border border-gray-200 rounded-lg bg-slate-50 text-slate-700 font-mono font-bold"
+                      placeholder="0,00"
                     />
                   </div>
                 </div>
@@ -364,4 +524,5 @@ export default function FinancesView() {
     </div>
   );
 }
+
 
