@@ -189,12 +189,49 @@ export default function Dashboard() {
     const w = parseFloat(newManualData.weight);
     const h = parseFloat(newManualData.height);
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
+    const treatmentsString = newManualData.treatments.join(', ') || 'Por definir';
+
+    // MAGIA DE FIRMAS: Generar consentimiento automático si es paciente
+    let automaticConsentLog = null;
+    if (newManualData.is_patient) {
+      const consentDate = new Date().toLocaleString('es-VE');
+      
+      const isMinor = parseInt(newManualData.edad) < 18;
+      if (isMinor && (!newManualData.guardian_name || !newManualData.guardian_cedula)) {
+        alert("Al ser el paciente menor de edad, debe ingresar los datos del representante legal.");
+        return;
+      }
+
+      const patientIdentifier = isMinor 
+        ? `${newManualData.guardian_name} (C.I: ${newManualData.guardian_cedula}) como rep. legal del menor ${newManualData.name}` 
+        : `${newManualData.name} (C.I: ${newManualData.cedula || 'No registrada'})`;
+      
+      automaticConsentLog = ''; // Empezar vacío
+
+      const needsConsent = newManualData.treatments.some(tName => {
+        const dbT = dbTreatments.find(d => d.name === tName);
+        return dbT ? dbT.requires_consent : true; 
+      });
+
+      if (needsConsent) {
+        automaticConsentLog += `\n===============================\nFIRMA DE CONSENTIMIENTO (MANUAL)\n===============================\nRegistrado por: Recepción / Dashboard\nPaciente: ${patientIdentifier}\nFecha y Hora: ${consentDate}\nProcedimiento(s): ${treatmentsString}\nDeclaración: Se asume consentimiento físico o verbal verificado.\n`;
+      }
+
+      const needsAnesthesia = newManualData.treatments.some(tName => {
+        const dbT = dbTreatments.find(d => d.name === tName);
+        return dbT ? dbT.requires_anesthesia : false;
+      });
+
+      if (needsAnesthesia) {
+        automaticConsentLog += `\n===============================\nFIRMA DE ANESTESIA (MANUAL)\n===============================\nRegistrado por: Recepción / Dashboard\nPaciente: ${patientIdentifier}\nFecha y Hora: ${consentDate}\nDeclaración: Se asume consentimiento físico/verbal para sedación verificado.\n`;
+      }
+    }
 
     const payload = {
       name: newManualData.name,
       phone: newManualData.phone,
       email: newManualData.email || null,
-      treatment: newManualData.treatments.join(', ') || 'Por definir',
+      treatment: treatmentsString,
       is_patient: newManualData.is_patient,
       cedula: newManualData.cedula || null,
       edad: newManualData.edad ? parseInt(newManualData.edad) : null,
@@ -209,20 +246,55 @@ export default function Dashboard() {
       asthmatic: newManualData.is_patient ? (newManualData.asthmatic || null) : null,
       allergic: newManualData.is_patient ? (newManualData.allergic || null) : null,
       allergies_detail: newManualData.is_patient ? (newManualData.allergies_detail || null) : null,
+      consent_log: automaticConsentLog,
       updated_by: currentUser.username
     };
 
     const fakeId = Date.now();
     setLeads([{ ...payload, id: fakeId, created_at: new Date().toISOString(), is_contacted: true }, ...leads]);
     setAddModalOpen(false);
-    setNewManualData({name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true});
+    // Limpiar también los datos del representante al cerrar
+    setNewManualData({name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', weight: '', height: '', sexo: '', medical_history: '', is_patient: true, guardian_name: '', guardian_cedula: ''});
 
     try {
+      // 1. Crear el paciente en la base de datos
       await fetch(N8N_CREATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
         body: JSON.stringify(payload)
       });
+
+      // 2. Descargar inmediatamente la base de datos para obtener el ID real que se le asignó
+      const res = await fetch(N8N_GET_URL, { headers: { 'Authorization': API_KEY } });
+      const text = await res.text();
+      const updatedLeads = text ? JSON.parse(text) : [];
+      const normLeads = Array.isArray(updatedLeads) ? (Array.isArray(updatedLeads[0]) ? updatedLeads[0] : updatedLeads) : [];
+      
+      // Buscar al paciente que acabamos de crear
+      const newlyCreated = normLeads.find(l => l.phone === payload.phone && l.name === payload.name);
+
+      // 3. Si tiene ID y le marcaste tratamientos, ¡Inyectarlos a las finanzas!
+      if (newlyCreated && newlyCreated.id && newManualData.treatments.length > 0) {
+        for (const tName of newManualData.treatments) {
+          const dbT = dbTreatments.find(d => d.name === tName);
+          if (dbT) {
+            const price = parseFloat(dbT.price || 0);
+            await fetch(N8N_ADD_FINANCE_URL, {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+              body: JSON.stringify({ 
+                lead_id: newlyCreated.id.toString(), 
+                treatment_id: dbT.id, 
+                treatment_name: dbT.name, 
+                base_price: price, 
+                discount: 0, 
+                agreed_price: price 
+              })
+            }).catch(console.error);
+          }
+        }
+      }
+
+      // 4. Refrescar la pantalla final
       fetchLeads(); 
     } catch (error) { console.error(error); }
   };
@@ -313,7 +385,31 @@ export default function Dashboard() {
     const h = parseFloat(editFormData.height);
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
 
-    // MAGIA 2: Comparamos contra lo que de verdad está en finanzas, NO contra la ficha vieja
+    // --- MAGIA DE FIRMAS: Detectar si se agregaron tratamientos MANUALMENTE desde el Dashboard ---
+    const oldTreatmentsDB = getTreatmentsArray(leadToEdit.treatment);
+    const newlySelectedInModal = editFormData.treatments.filter(t => !oldTreatmentsDB.includes(t));
+    
+    let updatedConsentLog = editFormData.consent_log || '';
+    
+    if (newlySelectedInModal.length > 0 && leadToEdit.is_patient) {
+      const consentDate = new Date().toLocaleString('es-VE');
+      const patientIdentifier = `${editFormData.name} (C.I: ${editFormData.cedula || 'No registrada'})`;
+      const treatmentsNewlyString = newlySelectedInModal.join(', ');
+
+      updatedConsentLog += `\n===============================\nNUEVO CONSENTIMIENTO (MANUAL)\n===============================\nRegistrado por: Recepción / Dashboard\nPaciente: ${patientIdentifier}\nFecha y Hora: ${consentDate}\nProcedimiento(s): ${treatmentsNewlyString}\nDeclaración: Se asume consentimiento físico o verbal verificado.\n`;
+
+      const needsAnesthesia = newlySelectedInModal.some(tName => {
+        const dbT = dbTreatments.find(d => d.name === tName);
+        return dbT ? dbT.requires_anesthesia : false;
+      });
+
+      if (needsAnesthesia) {
+        updatedConsentLog += `\n===============================\nNUEVA ANESTESIA (MANUAL)\n===============================\nRegistrado por: Recepción / Dashboard\nPaciente: ${patientIdentifier}\nFecha y Hora: ${consentDate}\nDeclaración: Se asume consentimiento físico/verbal para sedación verificado.\n`;
+      }
+    }
+    // ------------------------------------------------------------------------------------------
+
+    // MAGIA 2: Comparamos contra lo que de verdad está en finanzas para ver si hay que crear deudas
     let oldT = [...(leadToEdit.financeTreatments || [])];
     let newT = [...editFormData.treatments];
     let addedTreatments = [];
@@ -328,14 +424,15 @@ export default function Dashboard() {
     });
     let removedTreatments = oldT; // Lo que sobró fue eliminado
     
-    // Enviar a borrar los eliminados
+    // Enviar a borrar los eliminados en finanzas
     removedTreatments.forEach(async (treatmentName) => {
       await fetch(N8N_DEL_FINANCE_URL, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
         body: JSON.stringify({ lead_id: leadToEdit.id.toString(), treatment_name: treatmentName })
       }).catch(console.error);
     });
-    // Enviar a crear los nuevos
+    
+    // Enviar a crear los nuevos en finanzas
     addedTreatments.forEach(async (treatmentName) => {
       const dbT = dbTreatments.find(d => d.name === treatmentName);
       if (dbT) {
@@ -360,24 +457,15 @@ export default function Dashboard() {
         asthmatic: editFormData.asthmatic || null,
         allergic: editFormData.allergic || null,
         allergies_detail: editFormData.allergies_detail || null,
-        consent_log: editFormData.consent_log || null
+        consent_log: updatedConsentLog // <-- AHORA GUARDAMOS EL HISTORIAL ACTUALIZADO
       });
       setEditModalOpen(false);
     } else {
       updateLead(leadToEdit.id, { 
-        name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
-        email: editFormData.email || null,
-        cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
-        state: editFormData.state || null,
-        consent_log: editFormData.consent_log || null
+        name: editFormData.name, phone: editFormData.phone, email: editFormData.email || null, treatment: treatmentString,
+        is_contacted: true
       });
       setEditModalOpen(false);
-      
-      if (editFormData.treatments.some(t => MEDICAL_TREATMENTS.includes(t))) {
-        setSelectedLeadId(leadToEdit.id); 
-        setMedicalData({ weight: '', height: '', cedula: editFormData.cedula || '', edad: editFormData.edad || '', sexo: '', medical_history: '' });
-        setTimeout(() => setModalOpen(true), 300); 
-      }
     }
   };
 

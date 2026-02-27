@@ -109,11 +109,13 @@ export default function SelfRegistration() {
 
   const selectedProcedure = viewMode === 'new' ? formData.treatment : newTreatmentSelected;
   const selectedProcedureObj = treatmentsList.find(t => t.name === selectedProcedure);
+  // Si eligen "Otro", por seguridad legal asumimos que SÍ requiere consentimiento
+  const requiresConsent = selectedProcedureObj ? selectedProcedureObj.requires_consent : (selectedProcedure === 'Otro' ? true : false);
   const requiresAnesthesia = selectedProcedureObj ? selectedProcedureObj.requires_anesthesia : false;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!acceptedTerms) {
+    if (requiresConsent && !acceptedTerms) {
       alert("Debe aceptar el consentimiento general del procedimiento para continuar.");
       return;
     }
@@ -136,7 +138,10 @@ export default function SelfRegistration() {
           ? `${formData.guardian_name} (C.I: ${formData.guardian_cedula}) como rep. legal` 
           : `${formData.name} (C.I: ${formData.cedula})`;
         
-        let consentSignature = `\n===============================\nFIRMA DIGITAL DE CONSENTIMIENTO\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nProcedimiento: ${formData.treatment}\nDeclaración: Entiende riesgos y complicaciones. Autoriza procedimiento.\n`;
+        let consentSignature = '';
+        if (requiresConsent) {
+           consentSignature += `\n===============================\nFIRMA DIGITAL DE CONSENTIMIENTO\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nProcedimiento: ${selectedProcedure}\nDeclaración: Entiende riesgos y complicaciones. Autoriza procedimiento.\n`;
+        }
 
         if (requiresAnesthesia) {
           consentSignature += `\n===============================\nFIRMA DIGITAL DE ANESTESIA\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nDeclaración: Autoriza procedimiento anestésico y asume conocimiento de efectos colaterales.\n`;
@@ -159,7 +164,10 @@ export default function SelfRegistration() {
           ? `${formData.guardian_name} (C.I: ${formData.guardian_cedula}) como rep. legal` 
           : `${existingPatient.name} (C.I: ${existingPatient.cedula})`;
         
-        let consentSignature = `\n===============================\nNUEVO CONSENTIMIENTO REGISTRADO\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nProcedimiento: ${newTreatmentSelected}\nDeclaración: Entiende riesgos y complicaciones. Autoriza procedimiento.\n`;
+        let consentSignature = '';
+        if (requiresConsent) {
+           consentSignature += `\n===============================\nFIRMA DIGITAL DE CONSENTIMIENTO\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nProcedimiento: ${selectedProcedure}\nDeclaración: Entiende riesgos y complicaciones. Autoriza procedimiento.\n`;
+        }
 
         if (requiresAnesthesia) {
           consentSignature += `\n===============================\nFIRMA DIGITAL DE ANESTESIA\n===============================\nAceptado por: ${consenterName}\nFecha: ${consentDate}\nDeclaración: Autoriza procedimiento anestésico y asume conocimiento de efectos colaterales.\n`;
@@ -326,6 +334,7 @@ export default function SelfRegistration() {
                   </select>
                 </div>
 
+                {requiresConsent && (
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                   <h2 className="text-xl font-bold text-slate-800 pb-2 mb-4 flex items-center gap-2">
                     <span className="bg-blue-100 text-[#0056b3] w-8 h-8 rounded-full flex items-center justify-center text-sm">📝</span> 
@@ -347,6 +356,7 @@ export default function SelfRegistration() {
                     <span className="text-base font-bold text-slate-800">He leído la información y otorgo mi consentimiento general.</span>
                   </label>
                 </div>
+                )}
 
                 {requiresAnesthesia && (
                   <AnesthesiaConsentText 
@@ -358,7 +368,7 @@ export default function SelfRegistration() {
                 )}
 
                 <div className="mt-8 text-center">
-                  <button type="submit" disabled={isSubmitting || !acceptedTerms || !newTreatmentSelected || (requiresAnesthesia && !acceptedAnesthesiaTerms)} className="w-full md:w-auto md:px-16 py-5 bg-[#0056b3] text-white text-xl font-black rounded-2xl hover:bg-blue-700 transition shadow-lg inline-flex justify-center items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={isSubmitting || !selectedProcedure || (requiresConsent && !acceptedTerms) || (requiresAnesthesia && !acceptedAnesthesiaTerms)} className="w-full md:w-auto md:px-16 py-5 bg-[#0056b3] text-white text-xl font-black rounded-2xl hover:bg-blue-700 transition shadow-lg inline-flex justify-center items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? <Loader2 className="w-8 h-8 animate-spin" /> : <CheckCircle2 className="w-8 h-8" />}
                     {isSubmitting ? 'Guardando...' : 'Firmar y Finalizar'}
                   </button>
@@ -438,6 +448,7 @@ export default function SelfRegistration() {
                 </div>
               </section>
 
+              {requiresConsent && (
               <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                 <h2 className="text-xl font-bold text-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <span className="bg-blue-100 text-[#0056b3] w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span> 
@@ -459,6 +470,7 @@ export default function SelfRegistration() {
                   <span className="text-base font-bold text-slate-800">He leído la información y otorgo mi consentimiento general.</span>
                 </label>
               </section>
+              )}
 
               {requiresAnesthesia && (
                 <AnesthesiaConsentText 
@@ -470,7 +482,7 @@ export default function SelfRegistration() {
               )}
 
               <div className="pt-6 border-t border-slate-200 text-center">
-                <button type="submit" disabled={isSubmitting || !acceptedTerms || !formData.treatment || (requiresAnesthesia && !acceptedAnesthesiaTerms)} className="w-full md:w-auto md:px-16 py-5 bg-[#0056b3] text-white text-xl font-black rounded-2xl hover:bg-blue-700 transition shadow-lg inline-flex justify-center items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="submit" disabled={isSubmitting || !selectedProcedure || (requiresConsent && !acceptedTerms) || (requiresAnesthesia && !acceptedAnesthesiaTerms)} className="w-full md:w-auto md:px-16 py-5 bg-[#0056b3] text-white text-xl font-black rounded-2xl hover:bg-blue-700 transition shadow-lg inline-flex justify-center items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
                   {isSubmitting ? <Loader2 className="w-8 h-8 animate-spin" /> : <CheckCircle2 className="w-8 h-8" />}
                   {isSubmitting ? 'Procesando...' : 'Finalizar Registro y Aceptar'}
                 </button>

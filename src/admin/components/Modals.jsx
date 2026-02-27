@@ -320,6 +320,23 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
             <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={newManualData.edad} onChange={(e) => setNewManualData({ ...newManualData, edad: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Años" min="1" max="120" /></div>
           </div>
 
+          {/* NUEVO: CAJA PARA REPRESENTANTE LEGAL (Aparece dinámicamente) */}
+          {parseInt(newManualData.edad) < 18 && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+              <h4 className="text-amber-800 font-bold text-xs uppercase flex items-center gap-2">⚠️ Datos del Representante Legal</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-900 mb-1">Nombre Completo *</label>
+                  <input type="text" value={newManualData.guardian_name || ''} onChange={e => setNewManualData({...newManualData, guardian_name: e.target.value})} className="w-full p-2 border border-amber-300 rounded focus:ring-amber-500 text-sm bg-white" placeholder="Ej: Maria Perez" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-900 mb-1">Cédula *</label>
+                  <input type="text" value={newManualData.guardian_cedula || ''} onChange={e => setNewManualData({...newManualData, guardian_cedula: e.target.value})} className="w-full p-2 border border-amber-300 rounded focus:ring-amber-500 text-sm bg-white" placeholder="Ej: V-1234567" />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TODO: Implementar validación de permisos de Rol (Lectura/Escritura) */}
           <div>
             <label className="block text-sm font-semibold mb-2">Tratamientos de Interés</label>
