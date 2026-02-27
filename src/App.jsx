@@ -15,6 +15,7 @@ import ContactMap from './components/ContactMap'
 import Footer from './components/Footer'
 import ThankYou from './components/ThankYou' // Nuestra pÃ¡gina de gracias para el Pixel
 import NotFound from './pages/NotFound'
+import SelfRegistration from './pages/SelfRegistration'
 
 // --- 2. IMPORTACIONES DEL CRM (ADMINISTRADOR) ---
 import Login from './admin/Login'
@@ -66,6 +67,7 @@ function App() {
       <Routes>
         {/* Rutas PÃºblicas */}
         <Route path="/" element={<Home />} />
+        <Route path="/registro" element={<SelfRegistration />} />
         <Route path="/gracias" element={<ThankYou />} />
 
         {/* Rutas Privadas (CRM) */}

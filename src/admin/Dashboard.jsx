@@ -80,6 +80,7 @@ export default function Dashboard() {
   const N8N_FINANCES_URL = 'https://victorbot.sosmarketing.agency/webhook/api-finances';
   const N8N_ADD_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-finance-treatment';
   const N8N_DEL_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-delete-finance-treatment';
+  const N8N_DELETE_URL = 'https://victorbot.sosmarketing.agency/webhook/delete-lead';
 
   // Efectos (Carga de datos)
   useEffect(() => { 
@@ -265,21 +266,31 @@ export default function Dashboard() {
     setModalOpen(false);
   };
 
-  const handleRowDoubleClick = async (lead) => {
+  const handleRowDoubleClick = async (lead) => { 
     const latestFinances = await fetchFinances();
     setLeadToEdit(lead);
+    
+    // 1. Extraer tratamientos de la tabla de finanzas
     const patientFinances = latestFinances.filter(f => String(f.patient_id) === String(lead.id));
-    const mergedTreatments = patientFinances.map(f => f.treatment_name);
+    const financeTreatments = patientFinances.map(f => f.treatment_name);
+    
+    // 2. Unir los tratamientos originales de la BD con los de finanzas (sin repetir)
+    let oldT = getTreatmentsArray(lead.treatment);
+    const combinedTreatments = [...new Set([...oldT, ...financeTreatments])];
+
+    // 3. Normalizar el sexo por si viene de la tablet ("M" o "F")
+    const normalizedSexo = lead.sexo === 'M' ? 'Masculino' : lead.sexo === 'F' ? 'Femenino' : (lead.sexo || '');
+
     setEditFormData({ 
       name: lead.name || '', 
       phone: lead.phone || '', 
       email: lead.email || '',
-      treatments: mergedTreatments,
+      treatments: combinedTreatments, // <-- Ahora usamos la lista combinada
       cedula: lead.cedula || '',
       edad: lead.edad || '',
       initial_weight: lead.initial_weight || '',
       height: lead.height || '',
-      sexo: lead.sexo || '',
+      sexo: normalizedSexo,           // <-- Ahora usamos el sexo normalizado
       medical_history: lead.medical_history || '',
       address: lead.address || '',
       state: lead.state || '',
@@ -531,8 +542,8 @@ export default function Dashboard() {
                             <td className="px-4 md:px-6 py-4 align-top">
                               <div className="font-bold text-slate-800">{lead.name}</div>
                               <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
-                              {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
-                              {lead.username === 'Registro Manual' && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">📝 Registro Manual</span>}
+                              {lead.username && lead.username !== 'Registro Manual' && lead.username !== 'Auto Registro Tablet' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
+                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">{lead.username === 'Registro Manual' ? '📝 Registro Manual' : '📱 Auto Registro Tablet'}</span>}
                             </td>
                             <td className="px-6 py-4 align-top hidden md:table-cell">
                               <div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div>
@@ -611,8 +622,8 @@ export default function Dashboard() {
                             <td className="px-4 md:px-6 py-4 align-top">
                               <div className="font-bold text-slate-800">{lead.name}</div>
                               <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
-                              {lead.username && lead.username !== 'Registro Manual' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
-                              {lead.username === 'Registro Manual' && <span className="text-[11px] text-slate-400 mt-1 block font-medium">📝 Registro Manual</span>}
+                              {lead.username && lead.username !== 'Registro Manual' && lead.username !== 'Auto Registro Tablet' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
+                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-[11px] text-slate-400 mt-1 block font-medium">{lead.username === 'Registro Manual' ? '📝 Registro Manual' : '📱 Auto Registro Tablet'}</span>}
                               <div className="text-[9px] text-slate-400 mt-2 font-mono flex flex-col hidden md:flex">
                                 <span className="uppercase tracking-wider font-semibold text-[8px] text-slate-300">Ingresó</span>
                                 {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit' })}
@@ -759,4 +770,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
