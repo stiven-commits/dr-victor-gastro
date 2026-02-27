@@ -39,6 +39,12 @@ const parseLocaleNumber = (val) => {
   if (!val) return NaN;
   return parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
 };
+const getLocalDateStr = (isoString) => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export default function FinancesView() {
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -214,15 +220,27 @@ export default function FinancesView() {
   const filteredFinances = finances.filter((row) => {
     const status = getStatus(row);
     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
-
     const term = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !term ||
-      getPatientName(row).toLowerCase().includes(term) ||
-      getCedula(row).toLowerCase().includes(term);
-
+    const matchesSearch = !term || getPatientName(row).toLowerCase().includes(term) || getCedula(row).toLowerCase().includes(term);
     const matchesState = filterState === 'Todos' || row.state === filterState;
-    return matchesStatus && matchesSearch && matchesState;
+    // Sincronización de fechas en la tabla inferior
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const payments = row.payments_history || [];
+      const hasPaymentInPeriod = payments.some(p => {
+        const pDate = getLocalDateStr(p.payment_date);
+        return (!startDate || pDate >= startDate) && (!endDate || pDate <= endDate);
+      });
+      
+      let createdInPeriod = false;
+      if (row.created_at) {
+        const cDate = getLocalDateStr(row.created_at);
+        createdInPeriod = (!startDate || cDate >= startDate) && (!endDate || cDate <= endDate);
+      }
+      
+      matchesDate = hasPaymentInPeriod || createdInPeriod;
+    }
+    return matchesStatus && matchesSearch && matchesState && matchesDate;
   });
 
   let incomeByMethod = {};
@@ -231,31 +249,27 @@ export default function FinancesView() {
   let totalPendingBalance = 0;
   let periodPayments = [];
 
-  finances.forEach(item => {
+  filteredFinances.forEach(item => {
     totalPendingBalance += parseFloat(item.balance || 0);
     const payments = item.payments_history || [];
     payments.forEach(p => {
-      const pDate = new Date(p.payment_date).toISOString().split('T')[0];
+      // SOLUCIÓN: Usamos la hora local en lugar de toISOString()
+      const pDate = getLocalDateStr(p.payment_date);
+      
       if ((!startDate || pDate >= startDate) && (!endDate || pDate <= endDate)) {
         const amt = parseFloat(p.amount_usd || 0);
         totalPeriodIncome += amt;
-
         const method = p.payment_method || 'Otro';
         incomeByMethod[method] = (incomeByMethod[method] || 0) + amt;
-
+        
         const tName = item.treatment_name || 'Otro';
         if (!incomeByTreatment[tName]) {
           incomeByTreatment[tName] = { amount: 0, countSet: new Set() };
         }
         incomeByTreatment[tName].amount += amt;
-        incomeByTreatment[tName].countSet.add(getLeadTreatmentId(item)); // Guarda el ID único para no duplicar si hay pagos parciales
-
-        periodPayments.push({
-          ...p,
-          patient_name: item.patient_name,
-          cedula: item.cedula,
-          treatment_name: item.treatment_name
-        });
+        incomeByTreatment[tName].countSet.add(getLeadTreatmentId(item));
+        
+        periodPayments.push({ ...p, patient_name: item.patient_name, cedula: item.cedula, treatment_name: item.treatment_name });
       }
     });
   });
