@@ -4,8 +4,8 @@ import logo from '../assets/logo-dr-victor-horizontal-300x66.png';
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
 const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/create-lead';
+const GET_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
-const TREATMENTS = ['Evaluación / Consulta', 'Endoscopia Digestiva Superior', 'Colonoscopia', 'Colocación de Balón Gástrico', 'Retiro de Balón Gástrico', 'Ecoendoscopia', 'Polipectomía', 'Otro'];
 
 export default function SelfRegistration() {
   const [formData, setFormData] = useState({
@@ -20,6 +20,24 @@ export default function SelfRegistration() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [treatmentsList, setTreatmentsList] = useState([]);
+
+  useEffect(() => {
+    const fetchTreatments = async () => {
+      try {
+        const response = await fetch(GET_TREATMENTS_URL, {
+          headers: { 'Authorization': API_KEY }
+        });
+        const data = await response.json();
+        // Extraemos solo el nombre (name) del tratamiento para el selector
+        const names = Array.isArray(data) ? data.map(t => t.name) : [];
+        setTreatmentsList(names);
+      } catch (error) {
+        console.error("Error cargando tratamientos:", error);
+      }
+    };
+    fetchTreatments();
+  }, []);
 
   // Ocultar la Navbar y el Footer web para que parezca una App nativa
   useEffect(() => {
@@ -73,12 +91,10 @@ export default function SelfRegistration() {
       
       const consentSignature = `\n\n===============================\nFIRMA DIGITAL DE CONSENTIMIENTO\n===============================\nAceptado por: ${consenterName}\nFecha y Hora: ${consentDate}\nProcedimiento Autorizado: ${formData.treatment}\nDeclaración: Entiende los riesgos y complicaciones potenciales, y otorga su consentimiento voluntario.`;
 
-      // 2. Adjuntarlo a los antecedentes médicos para que se guarde sin alterar la base de datos
-      const finalMedicalHistory = (formData.medical_history || 'Sin antecedentes registrados.') + consentSignature;
-
+      // 2. Lo enviamos separado
       const payload = {
         ...formData,
-        medical_history: finalMedicalHistory,
+        consent_log: consentSignature, // <-- Nuevo campo separado
         is_patient: true,
         username: 'Auto Registro Tablet'
       };
@@ -135,7 +151,8 @@ export default function SelfRegistration() {
                 <label className="block text-sm font-bold text-slate-700 mb-2">Procedimiento a realizar *</label>
                 <select required value={formData.treatment} onChange={e => setFormData({...formData, treatment: e.target.value})} className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-[#0056b3] text-lg bg-blue-50/50 font-bold text-[#0056b3]">
                   <option value="">Seleccione el procedimiento...</option>
-                  {TREATMENTS.map(t => <option key={t} value={t}>{t}</option>)}
+                  {treatmentsList.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="Otro">Otro</option>
                 </select>
               </div>
               

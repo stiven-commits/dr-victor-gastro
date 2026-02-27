@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState(null);
   const [editFormData, setEditFormData] = useState({ 
-    name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '', sexo: '', medical_history: '' 
+    name: '', phone: '', email: '', treatments: [], cedula: '', edad: '', initial_weight: '', height: '', sexo: '', medical_history: '', consent_log: '' 
   });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -268,11 +268,13 @@ export default function Dashboard() {
 
   const handleRowDoubleClick = async (lead) => { 
     const latestFinances = await fetchFinances();
-    setLeadToEdit(lead);
     
     // 1. Extraer tratamientos de la tabla de finanzas
     const patientFinances = latestFinances.filter(f => String(f.patient_id) === String(lead.id));
     const financeTreatments = patientFinances.map(f => f.treatment_name);
+    
+    // MAGIA 1: Guardamos los tratamientos financieros reales junto con el paciente
+    setLeadToEdit({...lead, financeTreatments}); 
     
     // 2. Unir los tratamientos originales de la BD con los de finanzas (sin repetir)
     let oldT = getTreatmentsArray(lead.treatment);
@@ -297,7 +299,8 @@ export default function Dashboard() {
       smokes: lead.smokes || '',
       asthmatic: lead.asthmatic || '',
       allergic: lead.allergic || '',
-      allergies_detail: lead.allergies_detail || ''
+      allergies_detail: lead.allergies_detail || '',
+      consent_log: lead.consent_log || ''
     });
     setEditModalOpen(true);
   };
@@ -310,7 +313,8 @@ export default function Dashboard() {
     const h = parseFloat(editFormData.height);
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
 
-    let oldT = getTreatmentsArray(leadToEdit.treatment);
+    // MAGIA 2: Comparamos contra lo que de verdad está en finanzas, NO contra la ficha vieja
+    let oldT = [...(leadToEdit.financeTreatments || [])];
     let newT = [...editFormData.treatments];
     let addedTreatments = [];
     
@@ -319,7 +323,7 @@ export default function Dashboard() {
       if (idx !== -1) {
         oldT.splice(idx, 1); // Encontrado, se quita de oldT
       } else {
-        addedTreatments.push(t); // Es nuevo
+        addedTreatments.push(t); // Es nuevo en finanzas, ¡hay que agregarlo!
       }
     });
     let removedTreatments = oldT; // Lo que sobró fue eliminado
@@ -355,7 +359,8 @@ export default function Dashboard() {
         smokes: editFormData.smokes || null,
         asthmatic: editFormData.asthmatic || null,
         allergic: editFormData.allergic || null,
-        allergies_detail: editFormData.allergies_detail || null
+        allergies_detail: editFormData.allergies_detail || null,
+        consent_log: editFormData.consent_log || null
       });
       setEditModalOpen(false);
     } else {
@@ -363,7 +368,8 @@ export default function Dashboard() {
         name: editFormData.name, phone: editFormData.phone, treatment: treatmentString,
         email: editFormData.email || null,
         cedula: editFormData.cedula || null, edad: editFormData.edad ? parseInt(editFormData.edad) : null,
-        state: editFormData.state || null
+        state: editFormData.state || null,
+        consent_log: editFormData.consent_log || null
       });
       setEditModalOpen(false);
       

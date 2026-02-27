@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, FileText, CheckCircle2 } from 'lucide-react';
 import { getTreatmentsArray } from '../utils/helpers';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
@@ -212,6 +212,19 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
               <div>
                 <label className="block text-sm font-semibold mb-1 text-purple-700">Antecedentes Médicos</label>
                 <textarea value={editFormData.medical_history} onChange={(e) => setEditFormData({ ...editFormData, medical_history: e.target.value })} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 resize-none" rows="3" placeholder="Alergias, cirugías previas, enfermedades crónicas..."></textarea>
+              </div>
+              {/* Nueva Caja de Consentimiento Legal */}
+              <div className="md:col-span-2 mt-2">
+                <label className="block text-sm font-semibold mb-1 text-slate-700 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" /> Registro de Consentimientos
+                </label>
+                <textarea
+                  readOnly
+                  value={editFormData.consent_log || ''}
+                  className="w-full p-3 border border-green-200 rounded-lg outline-none bg-green-50/30 text-slate-600 font-mono text-xs whitespace-pre-wrap"
+                  rows="4"
+                  placeholder="El paciente no ha firmado consentimientos digitales aún."
+                ></textarea>
               </div>
             </div>
           )}
