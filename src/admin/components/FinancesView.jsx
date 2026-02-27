@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
-import { Search, CreditCard, X, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Search, CreditCard, X, Loader2, ChevronLeft, ChevronRight, Calendar, Printer } from 'lucide-react';
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
 const GET_URL = 'https://victorbot.sosmarketing.agency/webhook/api-finances';
 const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-payment';
+const ADJUST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-adjust-price';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
 const getStatus = (row) => row?.payment_status || row?.status || 'Pendiente';
@@ -67,6 +68,9 @@ export default function FinancesView() {
     amount_bs: ''
   });
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({ type: 'discount', amount_usd: '' });
+  const [submittingAdjust, setSubmittingAdjust] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [detailsRecord, setDetailsRecord] = useState(null);
 
@@ -178,6 +182,35 @@ export default function FinancesView() {
     }
   };
 
+  const handleAdjustSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedRecord) return;
+    const parsedAmount = parseLocaleNumber(adjustForm.amount_usd);
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert('Por favor ingrese un monto válido.');
+      return;
+    }
+    setSubmittingAdjust(true);
+    const finalAdjustment = adjustForm.type === 'discount' ? -Math.abs(parsedAmount) : Math.abs(parsedAmount);
+    try {
+      await fetch(ADJUST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+        body: JSON.stringify({
+          lead_treatment_id: getLeadTreatmentId(selectedRecord),
+          adjustment: finalAdjustment
+        })
+      });
+      setIsAdjustModalOpen(false);
+      setAdjustForm({ type: 'discount', amount_usd: '' });
+      fetchFinances();
+    } catch (error) {
+      console.error('Error ajustando precio:', error);
+    } finally {
+      setSubmittingAdjust(false);
+    }
+  };
+
   const filteredFinances = finances.filter((row) => {
     const status = getStatus(row);
     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
@@ -193,9 +226,10 @@ export default function FinancesView() {
   });
 
   let incomeByMethod = {};
-  let incomeByTreatment = {};
+  let incomeByTreatment = {}; // Ahora guardará el monto y un Set con los IDs únicos
   let totalPeriodIncome = 0;
   let totalPendingBalance = 0;
+  let periodPayments = [];
 
   finances.forEach(item => {
     totalPendingBalance += parseFloat(item.balance || 0);
@@ -205,13 +239,28 @@ export default function FinancesView() {
       if ((!startDate || pDate >= startDate) && (!endDate || pDate <= endDate)) {
         const amt = parseFloat(p.amount_usd || 0);
         totalPeriodIncome += amt;
+
         const method = p.payment_method || 'Otro';
         incomeByMethod[method] = (incomeByMethod[method] || 0) + amt;
+
         const tName = item.treatment_name || 'Otro';
-        incomeByTreatment[tName] = (incomeByTreatment[tName] || 0) + amt;
+        if (!incomeByTreatment[tName]) {
+          incomeByTreatment[tName] = { amount: 0, countSet: new Set() };
+        }
+        incomeByTreatment[tName].amount += amt;
+        incomeByTreatment[tName].countSet.add(getLeadTreatmentId(item)); // Guarda el ID único para no duplicar si hay pagos parciales
+
+        periodPayments.push({
+          ...p,
+          patient_name: item.patient_name,
+          cedula: item.cedula,
+          treatment_name: item.treatment_name
+        });
       }
     });
   });
+
+  periodPayments.sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
 
   const totalPages = Math.ceil(filteredFinances.length / ITEMS_PER_PAGE) || 1;
   const paginatedFinances = filteredFinances.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -220,12 +269,27 @@ export default function FinancesView() {
   const showBsFields = paymentForm.payment_method === 'Pago Móvil' || paymentForm.payment_method === 'Transferencia (Bs)';
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="w-full">
+      <style>{`
+        @media print {
+          @page { size: letter landscape; margin: 8mm; }
+          body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          aside, header, .no-print { display: none !important; }
+          main { padding: 0 !important; margin: 0 !important; background: white !important; }
+          .print-area { display: block !important; width: 100%; }
+          ::-webkit-scrollbar { display: none; }
+        }
+      `}</style>
+      {/* --- ZONA WEB NORMAL (Se oculta al imprimir) --- */}
+      <div className="p-4 md:p-6 no-print">
       <div className="flex flex-col md:flex-row gap-4 items-end mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-2 text-[#0056b3] font-bold"><Calendar className="w-5 h-5"/> Rango de Fechas:</div>
         <div><label className="text-xs font-semibold text-slate-500 block mb-1">Desde</label><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
         <div><label className="text-xs font-semibold text-slate-500 block mb-1">Hasta</label><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
         <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-sm text-slate-500 hover:text-[#0056b3] font-medium px-2 py-2">Quitar filtro</button>
+        <button onClick={() => window.print()} className="ml-auto bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-900 transition shadow-sm flex items-center gap-2 text-sm whitespace-nowrap">
+          <Printer className="w-4 h-4" /> Imprimir Resumen
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -242,8 +306,13 @@ export default function FinancesView() {
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-48">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresos por Procedimiento</h3>
           <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {Object.entries(incomeByTreatment).length === 0 ? <p className="text-sm text-slate-400 italic">Sin ingresos en el periodo.</p> : Object.entries(incomeByTreatment).map(([treatment, amount]) => (
-              <div key={treatment} className="flex justify-between text-sm"><span className="font-medium text-slate-600 truncate mr-2" title={treatment}>{treatment}</span><span className="font-bold text-slate-800">${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+            {Object.entries(incomeByTreatment).length === 0 ? <p className="text-sm text-slate-400 italic">Sin ingresos en el periodo.</p> : Object.entries(incomeByTreatment).map(([treatment, data]) => (
+              <div key={treatment} className="flex justify-between text-sm">
+                <span className="font-medium text-slate-600 truncate mr-2" title={treatment}>
+                  {treatment} <span className="text-[#0056b3] font-bold ml-1">(x{data.countSet.size})</span>
+                </span>
+                <span className="font-bold text-slate-800">${data.amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
             ))}
           </div>
           <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-bold text-[#0056b3]"><span>TOTAL</span><span>${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
@@ -306,6 +375,7 @@ export default function FinancesView() {
                 <th className="px-4 py-3 font-semibold">Paciente</th>
                 <th className="px-4 py-3 font-semibold">Tratamiento</th>
                 <th className="px-4 py-3 font-semibold">Precio Acordado</th>
+                <th className="px-4 py-3 font-semibold">Ajustes</th>
                 <th className="px-4 py-3 font-semibold">Pagado</th>
                 <th className="px-4 py-3 font-semibold">Saldo Pendiente</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
@@ -323,6 +393,9 @@ export default function FinancesView() {
                 paginatedFinances.map((item, idx) => {
                   const status = item.payment_status || 'Pendiente';
                   const balance = parseFloat(item.balance || 0);
+                  const basePrice = parseFloat(item.base_price || item.agreed_price || 0);
+                  const agreedPrice = parseFloat(item.agreed_price || 0);
+                  const adjustment = agreedPrice - basePrice;
 
                   return (
                     <tr key={getLeadTreatmentId(item) || idx} className="hover:bg-slate-50/70">
@@ -332,6 +405,13 @@ export default function FinancesView() {
                       </td>
                       <td className="px-4 py-3 align-top text-slate-700">{item.treatment_name}</td>
                       <td className="px-4 py-3 align-top font-semibold text-slate-800">$<span className="font-mono">{parseFloat(item.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold">
+                        {adjustment !== 0 ? (
+                          <span className={`font-mono px-2 py-0.5 rounded-full text-[11px] border ${adjustment > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                            {adjustment > 0 ? '+' : ''}{adjustment.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        ) : <span className="text-slate-300">-</span>}
+                      </td>
                       <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-green-600">{parseFloat(item.amount_paid || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{parseFloat(item.balance || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top">
@@ -341,6 +421,11 @@ export default function FinancesView() {
                       </td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center justify-center gap-2">
+                          {status !== 'Pagado' && (
+                            <button type="button" onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+                              ⚙️ Ajuste
+                            </button>
+                          )}
                           {parseFloat(item.amount_paid || 0) > 0 && (
                             <button type="button" onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
                               📋 Detalles
@@ -382,6 +467,21 @@ export default function FinancesView() {
             </div>
 
             <div className="p-5 overflow-y-auto bg-slate-50/50 flex-1 space-y-3">
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Resumen de Facturación</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><span className="block text-slate-500 text-[11px]">Precio Base</span><span className="font-bold text-sm text-slate-700">${parseFloat(detailsRecord.base_price || detailsRecord.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                  <div>
+                    <span className="block text-slate-500 text-[11px]">Ajustes</span>
+                    <span className={`font-bold text-sm ${(parseFloat(detailsRecord.agreed_price || 0) - parseFloat(detailsRecord.base_price || detailsRecord.agreed_price || 0)) > 0 ? 'text-amber-600' : 'text-blue-600'}`}>
+                      {(parseFloat(detailsRecord.agreed_price || 0) - parseFloat(detailsRecord.base_price || detailsRecord.agreed_price || 0)) !== 0 
+                        ? ((parseFloat(detailsRecord.agreed_price || 0) - parseFloat(detailsRecord.base_price || detailsRecord.agreed_price || 0)) > 0 ? '+' : '') + (parseFloat(detailsRecord.agreed_price || 0) - parseFloat(detailsRecord.base_price || detailsRecord.agreed_price || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                        : '$0,00'}
+                    </span>
+                  </div>
+                  <div><span className="block text-slate-500 text-[11px]">Total a Pagar</span><span className="font-bold text-sm text-[#0056b3]">${parseFloat(detailsRecord.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                </div>
+              </div>
               {(!detailsRecord.payments_history || detailsRecord.payments_history.length === 0) ? (
                 <p className="text-center text-slate-400 py-10 text-sm">No hay pagos registrados.</p>
               ) : (
@@ -521,8 +621,134 @@ export default function FinancesView() {
           </div>
         </div>
       )}
+      {isAdjustModalOpen && selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-slate-800 text-white">
+              <h3 className="font-bold">Ajustar Precio</h3>
+              <button type="button" onClick={() => setIsAdjustModalOpen(false)} className="hover:text-red-400 transition"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAdjustSubmit} className="p-5 space-y-4">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm">
+                <p className="text-slate-600 mb-1">Paciente: <span className="font-bold text-slate-800">{getPatientName(selectedRecord)}</span></p>
+                <p className="text-slate-600">Tratamiento: <span className="font-bold text-slate-800">{selectedRecord.treatment_name}</span></p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-slate-700">Tipo de Ajuste</label>
+                <select value={adjustForm.type} onChange={(e) => setAdjustForm({ ...adjustForm, type: e.target.value })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white font-semibold">
+                  <option value="discount">📉 Aplicar Descuento (-)</option>
+                  <option value="extra">📈 Cargo Extra / Recargo (+)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-slate-700">Monto del Ajuste (USD)</label>
+                <input type="text" required value={adjustForm.amount_usd} onChange={(e) => setAdjustForm({ ...adjustForm, amount_usd: formatNumberInput(e.target.value) })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Ej: 50,00" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setIsAdjustModalOpen(false)} className="px-4 py-2 font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition" disabled={submittingAdjust}>Cancelar</button>
+                <button type="submit" className="px-5 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 shadow-sm transition inline-flex items-center gap-2 disabled:opacity-70" disabled={submittingAdjust}>
+                  {submittingAdjust ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Aplicar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      </div> {/* Cierre del no-print wrapper */}
+            {/* --- ZONA DE IMPRESIÓN (Se oculta en la web) --- */}
+      <div className="hidden print-area bg-white text-black font-sans">
+        <div className="flex justify-between items-center border-b-2 border-slate-800 pb-3 mb-4">
+          <div>
+            <h1 className="text-lg font-black uppercase tracking-widest text-slate-900">Resumen de Caja Diario</h1>
+            <h2 className="text-sm font-bold text-slate-600 mt-0.5">Dr. Víctor - Gastroenterología Clínica</h2>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-slate-600">Periodo: {startDate || 'Inicio'} al {endDate || 'Hoy'}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Impreso: {new Date().toLocaleString('es-VE', { dateStyle: 'long', timeStyle: 'short' })}</p>
+          </div>
+        </div>
+
+        <table className="w-full text-left text-[10px] mb-6 border-collapse">
+          <thead>
+            <tr className="bg-slate-100 text-slate-800 uppercase tracking-wider">
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold w-16">Hora</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold">Paciente</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold w-20">C.I</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold">Procedimiento</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold w-20">Método</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold">Referencia / Tasa</th>
+              <th className="border-b-2 border-slate-300 p-1.5 font-bold text-right w-24">Monto USD</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {periodPayments.length === 0 ? (
+              <tr><td colSpan="7" className="text-center p-4 italic text-slate-500">No se registraron cobros en el periodo seleccionado.</td></tr>
+            ) : (
+              periodPayments.map(p => (
+                <tr key={p.id}>
+                  <td className="p-1.5">{new Date(p.payment_date).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true })}</td>
+                  <td className="p-1.5 font-bold">{p.patient_name}</td>
+                  <td className="p-1.5 font-mono">{p.cedula || 'N/A'}</td>
+                  <td className="p-1.5">{p.treatment_name}</td>
+                  <td className="p-1.5">{p.payment_method}</td>
+                  <td className="p-1.5 font-mono">
+                    {p.reference_number && p.reference_number !== 'No aplica' && p.reference_number !== '' ? <span className="block">Ref: {p.reference_number}</span> : null}
+                    {p.amount_bs ? <span className="block text-[9px] text-slate-600 mt-0.5 font-bold">Bs. {parseFloat(p.amount_bs).toLocaleString('es-VE', {minimumFractionDigits:2})} (Tasa: {p.exchange_rate_bcv})</span> : null}
+                    {!p.reference_number && !p.amount_bs && p.payment_method === 'Efectivo USD' ? 'Efectivo' : null}
+                  </td>
+                  <td className="p-1.5 text-right font-bold text-slate-800">${parseFloat(p.amount_usd).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Cuadrícula de 3 columnas para el cierre final */}
+        <div className="grid grid-cols-3 gap-6 mb-6 border-t-2 border-slate-800 pt-4 page-break-inside-avoid">
+          <div>
+            <h3 className="font-bold text-[11px] uppercase mb-2 text-slate-800">Desglose por Método</h3>
+            <div className="space-y-1">
+              {Object.entries(incomeByMethod).map(([method, amount]) => (
+                <div key={method} className="flex justify-between text-[10px] border-b border-dashed border-gray-200 pb-1">
+                  <span>{method}</span><span className="font-bold">${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="font-bold text-[11px] uppercase mb-2 text-slate-800">Resumen Procedimientos</h3>
+            <div className="space-y-1">
+              {Object.entries(incomeByTreatment).map(([treatment, data]) => (
+                <div key={treatment} className="flex justify-between text-[10px] border-b border-dashed border-gray-200 pb-1">
+                  <span className="truncate pr-2">{treatment} <strong>(x{data.countSet.size})</strong></span>
+                  <span className="font-bold">${data.amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col justify-end items-end">
+            <div className="bg-slate-100 p-3 rounded-lg w-48 text-right border border-slate-200">
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Ingreso Total</p>
+              <p className="text-xl font-black text-slate-900">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-300 pt-3 mt-6 page-break-inside-avoid">
+          <p className="font-bold text-[11px] mb-4 text-slate-800">Observaciones Generales:</p>
+          <div className="w-full border-b border-slate-400 mb-6"></div>
+          <div className="w-full border-b border-slate-400 mb-8"></div>
+
+          <div className="flex justify-center mt-12 pt-6">
+            <div className="text-center w-56">
+              <div className="border-b border-slate-800 mb-2"></div>
+              <p className="font-bold text-[11px] text-slate-800">Recibido / Firma del Doctor</p>
+              <p className="text-[9px] text-slate-500 mt-1">Dr. Víctor</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
 
