@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { getTreatmentsArray } from '../utils/helpers';
 
@@ -42,9 +42,11 @@ export function PatientModal({ isOpen, onClose, medicalData, setMedicalData, han
   );
 }
 
-export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, handleSaveEdit, leadToEdit, setDeleteModalOpen, dbTreatments = [] }) {
+export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, handleSaveEdit, leadToEdit, setDeleteModalOpen, dbTreatments = [], finances = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const currentUserStr = localStorage.getItem('currentUser');
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : { role: 'viewer' };
 
   if (!isOpen || !leadToEdit) return null;
 
@@ -55,15 +57,21 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
   };
 
   const selectedTreatments = Array.isArray(editFormData.treatments) ? editFormData.treatments : [];
+  // Validar dbTreatments
+  const safeDbTreatments = Array.isArray(dbTreatments) ? dbTreatments : [];
+
   const filteredTreatments = (dbTreatments || []).filter((option) => {
     const optionName = option?.name || '';
     if (!optionName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return !selectedTreatments.includes(optionName);
+    return true;
   });
+
+  console.log('Datos de Tratamientos Recibidos:', dbTreatments);
+  let availableFinances = [...finances.filter(f => String(f.patient_id) === String(leadToEdit.id))];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-full">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-full">
         <div className={`flex justify-between items-center p-4 text-white ${leadToEdit.is_patient ? 'bg-purple-700' : 'bg-slate-800'}`}>
           <h3 className="font-bold text-lg">{leadToEdit.is_patient ? '⭐ Editar Paciente' : '🎯 Editar Lead'}</h3>
           <button type="button" onClick={onClose} className="hover:text-gray-200 transition"><X size={20}/></button>
@@ -84,27 +92,61 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
           {/* TODO: Implementar validación de permisos de Rol (Lectura/Escritura) */}
           <div>
             <label className="block text-sm font-semibold mb-2">Tratamientos de Interés</label>
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-col gap-2 mb-3 max-h-48 overflow-y-auto pr-1">
+              {selectedTreatments.length === 0 && <p className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed border-slate-200">No hay procedimientos asignados.</p>}
               {selectedTreatments.map((tratamientoActual) => {
-                const isHistorical = getTreatmentsArray(leadToEdit?.treatment).includes(tratamientoActual);
+                const fIndex = availableFinances.findIndex(f => String(f.treatment_name).trim() === String(tratamientoActual).trim());
+                let financeRecord = null;
+                if (fIndex !== -1) {
+                    financeRecord = availableFinances[fIndex];
+                    availableFinances.splice(fIndex, 1); // Lo quitamos para que el próximo duplicado use el siguiente registro
+                }
+                
+                // Nueva lógica infalible de bloqueo
+                const isFullyPaid = financeRecord?.payment_status === 'Pagado';
+                const isPartiallyPaid = financeRecord?.payment_status === 'Parcial' || (parseFloat(financeRecord?.amount_paid || 0) > 0 && !isFullyPaid);
+                const isLocked = isFullyPaid || isPartiallyPaid;
+                
                 return (
-                  <span key={tratamientoActual} className="bg-blue-100 text-[#0056b3] px-2 py-1 rounded-md text-xs font-bold flex items-center">
-                    {tratamientoActual}
-                    {!isHistorical && (
-                      <button type="button" onClick={() => setEditFormData({ ...editFormData, treatments: selectedTreatments.filter((t) => t !== tratamientoActual) })} className="ml-1 text-[#0056b3] hover:text-blue-800">X</button>
+                  <div key={tratamientoActual} className={`flex justify-between items-center border p-3 rounded-xl transition ${isFullyPaid ? 'bg-green-50/50 border-green-200' : isPartiallyPaid ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <div>
+                      <p className={`text-sm font-bold ${isFullyPaid ? 'text-green-800' : isPartiallyPaid ? 'text-amber-700' : 'text-slate-800'}`}>
+                        {tratamientoActual} {isPartiallyPaid && <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Abonado</span>}
+                      </p>
+                      {financeRecord ? (
+                        <p className="text-[11px] text-slate-500 font-mono mt-1 flex gap-3">
+                          <span>💰 ${parseFloat(financeRecord.agreed_price || 0).toLocaleString('en-US')}</span>
+                          <span>📅 {new Date(financeRecord.created_at).toLocaleDateString('es-VE')}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 font-medium mt-1 italic">⚠️ Pendiente por guardar en finanzas...</p>
+                      )}
+                    </div>
+                    
+                    {isLocked ? (
+                      <span className={`text-lg cursor-not-allowed px-3 ${isFullyPaid ? 'text-green-600' : 'text-amber-500'}`} title={isFullyPaid ? "100% Pagado (Bloqueado)" : "Pago Parcial (Bloqueado)"}>🔒</span>
+                    ) : (
+                      <button type="button" onClick={() => setEditFormData({ ...editFormData, treatments: selectedTreatments.filter((t) => t !== tratamientoActual) })} className="text-red-400 hover:text-white hover:bg-red-500 p-2 rounded-lg transition shadow-sm" title="Eliminar procedimiento">
+                        🗑️
+                      </button>
                     )}
-                  </span>
+                  </div>
                 );
               })}
             </div>
-            <div className="relative">
-              <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} onFocus={() => setIsDropdownOpen(true)} onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Buscar tratamiento..." />
-              {isDropdownOpen && (
-                <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                  {filteredTreatments.map((option, index) => (
-                    <li key={`${option?.name || 'treatment'}-${index}`} onMouseDown={() => { setEditFormData({ ...editFormData, treatments: [...selectedTreatments, option.name] }); setSearchTerm(''); }} className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer">{option?.name || ''}</li>
+            <div className="relative w-full">
+              <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} onFocus={() => setIsDropdownOpen(true)} onBlur={() => setTimeout(() => setIsDropdownOpen(false), 300)} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder={`Buscar entre ${dbTreatments?.length || 0} tratamientos...`} />
+              {isDropdownOpen && filteredTreatments.length > 0 && (
+                <ul className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-2xl max-h-48 overflow-y-auto left-0 top-full">
+                  {filteredTreatments.map((t, idx) => (
+                    <li key={idx} onMouseDown={() => { setEditFormData({ ...editFormData, treatments: [...selectedTreatments, t.name] }); setSearchTerm(''); }} className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700">
+                      {t.name}
+                    </li>
                   ))}
                 </ul>
+              )}
+              {isDropdownOpen && filteredTreatments.length === 0 && searchTerm !== '' && (
+                <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-500 top-full">No se encontraron tratamientos</div>
               )}
             </div>
           </div>
@@ -131,7 +173,9 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
           )}
 
           <div className="flex justify-between items-center pt-4 mt-2 border-t border-gray-100">
-            <button type="button" onClick={() => setDeleteModalOpen(true)} className="px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition flex items-center gap-2">🗑️ Eliminar</button>
+            {currentUser?.role === 'admin' ? (
+              <button type="button" onClick={() => setDeleteModalOpen(true)} className="px-4 py-2 text-red-500 font-bold hover:bg-red-50 rounded-lg transition flex items-center gap-2">🗑️ Eliminar</button>
+            ) : <div></div>}
             <div className="flex gap-3">
               <button type="button" onClick={onClose} className="px-5 py-2.5 font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
               <button type="submit" className={`px-6 py-2.5 text-white rounded-lg font-bold shadow-sm transition ${leadToEdit.is_patient ? 'bg-purple-700 hover:bg-purple-800' : 'bg-slate-800 hover:bg-slate-900'}`}>Guardar Cambios</button>
@@ -184,15 +228,19 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
   };
 
   const selectedTreatments = Array.isArray(newManualData.treatments) ? newManualData.treatments : [];
-  const filteredTreatments = (dbTreatments || []).filter((option) => {
-    const optionName = option?.name || '';
-    if (!optionName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return !selectedTreatments.includes(optionName);
+  // Validar dbTreatments
+  const safeDbTreatments = Array.isArray(dbTreatments) ? dbTreatments : [];
+
+  const filteredTreatments = safeDbTreatments.filter((option) => {
+  const optionName = option?.name || '';
+  return optionName.toLowerCase().includes((searchTerm || '').toLowerCase()) && !selectedTreatments.includes(optionName);
   });
+
+  console.log('Datos de Tratamientos Recibidos:', dbTreatments);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-full">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-full">
         <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white">
           <h3 className="font-bold">Añadir Registro Manual</h3>
           <button type="button" onClick={onClose} className="hover:text-red-200 transition"><X size={20}/></button>
@@ -226,14 +274,19 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
                 </span>
               ))}
             </div>
-            <div className="relative">
-              <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} onFocus={() => setIsDropdownOpen(true)} onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Buscar tratamiento..." />
-              {isDropdownOpen && (
-                <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                  {filteredTreatments.map((option, index) => (
-                    <li key={`${option?.name || 'treatment'}-${index}`} onMouseDown={() => { setNewManualData({ ...newManualData, treatments: [...selectedTreatments, option.name] }); setSearchTerm(''); }} className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer">{option?.name || ''}</li>
+            <div className="relative w-full">
+              <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }} onFocus={() => setIsDropdownOpen(true)} onBlur={() => setTimeout(() => setIsDropdownOpen(false), 300)} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder={`Buscar entre ${dbTreatments?.length || 0} tratamientos...`} />
+              {isDropdownOpen && filteredTreatments.length > 0 && (
+                <ul className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-2xl max-h-48 overflow-y-auto left-0 top-full">
+                  {filteredTreatments.map((t, idx) => (
+                    <li key={idx} onMouseDown={() => { setNewManualData({ ...newManualData, treatments: [...selectedTreatments, t.name] }); setSearchTerm(''); }} className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700">
+                      {t.name}
+                    </li>
                   ))}
                 </ul>
+              )}
+              {isDropdownOpen && filteredTreatments.length === 0 && searchTerm !== '' && (
+                <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-500 top-full">No se encontraron tratamientos</div>
               )}
             </div>
           </div>
@@ -454,3 +507,4 @@ export function CreateAppointmentModal({ isOpen, onClose, leads, handleCreate })
     </div>
   );
 }
+

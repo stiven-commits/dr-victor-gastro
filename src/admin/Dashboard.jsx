@@ -1,10 +1,11 @@
-import React, { useState, useEffect, Fragment } from 'react';
+﻿import React, { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
 import AgendaView from './components/AgendaView';
+import FinancesView from './components/FinancesView';
 import MetricsCards from './components/MetricsCards';
 import Filters from './components/Filters';
 import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal } from './components/Modals';
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [dbTreatments, setDbTreatments] = useState([]); 
+  const [finances, setFinances] = useState([]);
 
   // ... (aquí continúan los demás estados como currentPage, addModalOpen, etc.)
   const navigate = useNavigate();
@@ -72,12 +74,16 @@ export default function Dashboard() {
   const N8N_POST_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
   const N8N_AUDIT_URL = 'https://victorbot.sosmarketing.agency/webhook/api-audit-logs'; 
   const N8N_CREATE_URL = 'https://victorbot.sosmarketing.agency/webhook/create-lead';
-    const N8N_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments'; // <-- NUEVA RUTA
+  const N8N_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments'; // <-- NUEVA RUTA
+  const N8N_FINANCES_URL = 'https://victorbot.sosmarketing.agency/webhook/api-finances';
+  const N8N_ADD_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-finance-treatment';
+  const N8N_DEL_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-delete-finance-treatment';
 
   // Efectos (Carga de datos)
   useEffect(() => { 
     fetchLeads(); 
     fetchTreatments(); // <-- LLAMAMOS A LA NUEVA FUNCIÓN AL INICIAR
+    fetchFinances();
   }, []);
   useEffect(() => {
     localStorage.setItem('crmActiveTab', activeTab);
@@ -90,6 +96,7 @@ export default function Dashboard() {
     if (activeTab === 'leads') title = 'CRM Dr. Víctor - Leads';
     if (activeTab === 'patients') title = 'CRM Dr. Víctor - Pacientes';
     if (activeTab === 'agenda') title = 'CRM Dr. Víctor - Agenda';
+    if (activeTab === 'finances') title = 'CRM Dr. Víctor - Finanzas';
     if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
     
     document.title = title;
@@ -107,15 +114,38 @@ export default function Dashboard() {
 
   const fetchTreatments = async () => {
     try {
-      const response = await fetch(`${N8N_TREATMENTS_URL}?t=${new Date().getTime()}`, {
-        method: 'GET', headers: { 'Authorization': API_KEY }
+      const response = await fetch(N8N_TREATMENTS_URL, {
+        method: 'GET', 
+        headers: { 'Authorization': API_KEY, 'Accept': 'application/json' }
       });
+      
       const data = await response.json();
-      setDbTreatments(Array.isArray(data) ? data : []);
+      
+      // Normalización garantizada
+      let finalData = [];
+      if (Array.isArray(data)) {
+        finalData = Array.isArray(data[0]) ? data[0] : data;
+      } else if (data && typeof data === 'object') {
+        finalData = data.data || data.rows || (data.id ? [data] : []);
+      }
+      
+      setDbTreatments(finalData);
     } catch (error) { 
-      console.error("Error cargando tratamientos:", error);
+      console.error("Error de red cargando tratamientos:", error);
       setDbTreatments([]); 
     }
+  };
+
+  const fetchFinances = async () => {
+    try {
+      const response = await fetch(`${N8N_FINANCES_URL}?t=${new Date().getTime()}`, {
+        headers: { 'Authorization': API_KEY, 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+      let rawFinances = Array.isArray(data) ? (Array.isArray(data[0]) ? data[0] : data) : (data.data || []);
+      setFinances(rawFinances);
+      return rawFinances;
+    } catch (error) { console.error(error); return []; }
   };
 
   const fetchAuditLogs = async () => {
@@ -221,13 +251,16 @@ export default function Dashboard() {
     setModalOpen(false);
   };
 
-  const handleRowDoubleClick = (lead) => {
+  const handleRowDoubleClick = async (lead) => {
+    const latestFinances = await fetchFinances();
     setLeadToEdit(lead);
+    const patientFinances = latestFinances.filter(f => String(f.patient_id) === String(lead.id));
+    const mergedTreatments = patientFinances.map(f => f.treatment_name);
     setEditFormData({ 
       name: lead.name || '', 
       phone: lead.phone || '', 
       email: lead.email || '',
-      treatments: getTreatmentsArray(lead.treatment),
+      treatments: mergedTreatments,
       cedula: lead.cedula || '',
       edad: lead.edad || '',
       initial_weight: lead.initial_weight || '',
@@ -245,6 +278,39 @@ export default function Dashboard() {
     const w = parseFloat(editFormData.initial_weight);
     const h = parseFloat(editFormData.height);
     let bmiValue = (w > 0 && h > 0) ? (w / (h * h)).toFixed(2) : null;
+
+    let oldT = getTreatmentsArray(leadToEdit.treatment);
+    let newT = [...editFormData.treatments];
+    let addedTreatments = [];
+    
+    newT.forEach(t => {
+      const idx = oldT.indexOf(t);
+      if (idx !== -1) {
+        oldT.splice(idx, 1); // Encontrado, se quita de oldT
+      } else {
+        addedTreatments.push(t); // Es nuevo
+      }
+    });
+    let removedTreatments = oldT; // Lo que sobró fue eliminado
+    
+    // Enviar a borrar los eliminados
+    removedTreatments.forEach(async (treatmentName) => {
+      await fetch(N8N_DEL_FINANCE_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+        body: JSON.stringify({ lead_id: leadToEdit.id.toString(), treatment_name: treatmentName })
+      }).catch(console.error);
+    });
+    // Enviar a crear los nuevos
+    addedTreatments.forEach(async (treatmentName) => {
+      const dbT = dbTreatments.find(d => d.name === treatmentName);
+      if (dbT) {
+        const price = parseFloat(dbT.price || 0);
+        await fetch(N8N_ADD_FINANCE_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+          body: JSON.stringify({ lead_id: leadToEdit.id.toString(), treatment_id: dbT.id, treatment_name: dbT.name, base_price: price, discount: 0, agreed_price: price })
+        }).catch(console.error);
+      }
+    });
 
     if (leadToEdit.is_patient) {
       updateLead(leadToEdit.id, { 
@@ -389,7 +455,9 @@ export default function Dashboard() {
           ) : (
             <div className="overflow-x-auto">
               
-              {activeTab === 'audit' ? (
+              {activeTab === 'finances' ? (
+                <FinancesView />
+              ) : activeTab === 'audit' ? (
                 <div>
                   <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50"><h3 className="font-bold text-slate-700">Auditoría</h3><button onClick={fetchAuditLogs} className="text-xs text-slate-500 hover:underline">Actualizar</button></div>
                   <table className="w-full text-sm text-left min-w-[800px]">
@@ -637,7 +705,7 @@ export default function Dashboard() {
       <EditLeadModal 
         isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} 
         editFormData={editFormData} setEditFormData={setEditFormData} 
-        handleSaveEdit={handleSaveEdit} leadToEdit={leadToEdit} setDeleteModalOpen={setDeleteModalOpen} dbTreatments={dbTreatments}
+        handleSaveEdit={handleSaveEdit} leadToEdit={leadToEdit} setDeleteModalOpen={setDeleteModalOpen} dbTreatments={dbTreatments} finances={finances}
       />
       <DeleteConfirmationModal 
         isOpen={deleteModalOpen} 
@@ -656,3 +724,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

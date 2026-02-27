@@ -1,41 +1,63 @@
-import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
 import logoBlue from '../assets/logo-dr-victor-horizontal-300x66.png';
 
-// Nuestra base de datos local temporal (Próximamente migrará a PostgreSQL)
-const USERS = {
-  'drvictor': { password: 'DRvictor2026', role: 'superadmin', name: 'Dr. Víctor' },
-  'yowbram': { password: 'User2026*', role: 'user', name: 'Yowbram' },
-  'dalber': { password: 'User2026*', role: 'user', name: 'Dalber' },
-  'guillermo': { password: 'User2026*', role: 'user', name: 'Guillermo' },
-  'kimberly': { password: 'User2026*', role: 'user', name: 'Kimberly' }
-};
+const N8N_LOGIN_URL = 'https://victorbot.sosmarketing.agency/webhook/api-login';
 
 export default function Login() {
+  const API_KEY = 'Bearer v2ew5w8mAq3';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    
-    // Buscamos si el usuario existe y la clave coincide
-    const user = USERS[username.toLowerCase().trim()];
-    
-    if (user && user.password === password) {
-      // Guardamos la identidad de la persona que acaba de entrar
-      localStorage.setItem('currentUser', JSON.stringify({ 
-        username: username.toLowerCase().trim(), 
-        role: user.role, 
-        name: user.name 
-      }));
-      // Mantenemos la llave general para que no lo saque el sistema
-      localStorage.setItem('isAdminAuth', 'true'); 
+  
+  useEffect(() => {
+    if (localStorage.getItem('isAdminAuth') === 'true') {
       navigate('/dashboard');
-    } else {
-      setError('Usuario o contraseña incorrectos');
+    }
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch(N8N_LOGIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': API_KEY },
+        body: JSON.stringify({ username, password })
+      });
+      const responseText = await response.text();
+      console.log("🔍 Respuesta cruda Login n8n:", responseText);
+
+      const responseData = JSON.parse(responseText);
+
+      // Extraer el usuario sin importar cómo n8n haya anidado la respuesta
+      let user = null;
+      if (Array.isArray(responseData) && responseData.length > 0) {
+      user = responseData[0]; // Si viene como arreglo: [{...}]
+      } else if (responseData && typeof responseData === 'object' && responseData.username) {
+      user = responseData; // Si viene como objeto directo: {...}
+      } else if (responseData?.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+      user = responseData.data[0]; // Si viene anidado: { data: [{...}] }
+      }
+
+      // Validar que realmente tenemos un usuario
+      if (user && user.username) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      localStorage.setItem('isAdminAuth', 'true');
+      navigate('/dashboard');
+      } else {
+      setError('Usuario o contraseña incorrectos.');
+      }
+    } catch (error) {
+      console.error("❌ Error en login:", error);
+      setError('Error de conexión con el servidor.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -46,20 +68,20 @@ export default function Login() {
           <img src={logoBlue} alt="Logo Dr. Víctor" className="h-20 w-auto object-contain mb-4" />
           <p className="text-slate-500">Acceso exclusivo para personal</p>
         </div>
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Usuario</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -73,8 +95,8 @@ export default function Login() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Contraseña</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -84,11 +106,12 @@ export default function Login() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="w-full bg-[#0056b3] hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md hover:shadow-lg"
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#0056b3] hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Iniciar Sesión
+            {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>
