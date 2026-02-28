@@ -6,6 +6,7 @@ import { Loader2, Plus, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import AgendaView from './components/AgendaView';
 import FinancesView from './components/FinancesView';
+import ReportsView from './components/ReportsView';
 import MetricsCards from './components/MetricsCards';
 import Filters from './components/Filters';
 import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal } from './components/Modals';
@@ -100,6 +101,7 @@ export default function Dashboard() {
     if (activeTab === 'patients') title = 'CRM Dr. Víctor - Pacientes';
     if (activeTab === 'agenda') title = 'CRM Dr. Víctor - Agenda';
     if (activeTab === 'finances') title = 'CRM Dr. Víctor - Finanzas';
+    if (activeTab === 'informes') title = 'CRM Dr. Víctor - Informes Médicos';
     if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
     
     document.title = title;
@@ -571,7 +573,7 @@ export default function Dashboard() {
               <Menu size={24} />
             </button>
             <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">
-              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : activeTab === 'finances' ? 'Finanzas / Pagos' : 'Auditoría'}
+              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : activeTab === 'finances' ? 'Finanzas / Pagos' : activeTab === 'informes' ? 'Informes Médicos' : 'Auditoría'}
             </h1>
           </div>
           {activeTab !== 'audit' && activeTab !== 'agenda' && (
@@ -595,7 +597,9 @@ export default function Dashboard() {
           ) : (
             <div className="overflow-x-auto">
               
-              {activeTab === 'finances' ? (
+              {activeTab === 'informes' ? (
+                <ReportsView leads={leads} updateLead={updateLead} fetchLeads={fetchLeads} />
+              ) : activeTab === 'finances' ? (
                 <FinancesView />
               ) : activeTab === 'audit' ? (
                 <div>
