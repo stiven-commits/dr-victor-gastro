@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { Loader2, Plus, ChevronLeft, ChevronRight, Menu, Package } from 'lucide-react';
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
@@ -9,7 +9,9 @@ import FinancesView from './components/FinancesView';
 import ReportsView from './components/ReportsView';
 import MetricsCards from './components/MetricsCards';
 import Filters from './components/Filters';
-import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal } from './components/Modals';
+import BalloonInventoryView from './components/BalloonInventoryView';
+import { PatientModal, EditLeadModal, NotesModal, AddManualModal, DeleteConfirmationModal, WeightModal, BalloonDeductionModal } from './components/Modals';
+
 
 // Importar Utilidades
 import { MEDICAL_TREATMENTS, getTreatmentsArray, parseNotes, parseHistory } from './utils/helpers';
@@ -21,7 +23,9 @@ export default function Dashboard() {
   const [filterTreatment, setFilterTreatment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterState, setFilterState] = useState('Todos');
-  
+  // --- ESTADOS PARA INVENTARIO ---
+  const [balloonModalOpen, setBalloonModalOpen] = useState(false);
+  const [activeBalloonLead, setActiveBalloonLead] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('crmActiveTab');
     if (savedTab === 'agenda') return 'leads';
@@ -103,6 +107,7 @@ export default function Dashboard() {
     if (activeTab === 'finances') title = 'CRM Dr. Víctor - Finanzas';
     if (activeTab === 'informes') title = 'CRM Dr. Víctor - Informes Médicos';
     if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
+    if (activeTab === 'inventory') title = 'CRM Dr. Víctor - Inventario';
     
     document.title = title;
   }, [activeTab]);
@@ -184,6 +189,45 @@ export default function Dashboard() {
         body: JSON.stringify(payload) 
       });
     } catch (error) { console.error(error); }
+  };
+
+  const handleOpenBalloonDeduction = (lead) => {
+    setActiveBalloonLead(lead);
+    setBalloonModalOpen(true);
+  };
+
+  const handleBalloonDeduction = async (brandId) => {
+    if (!activeBalloonLead) return;
+    
+    try {
+      const regBy = currentUser?.name || currentUser?.username || 'Sistema';
+      
+      const payload = {
+        brand_id: brandId || 'allurion',
+        quantity: 1,
+        type: 'exit',
+        lead_id: activeBalloonLead.id || null,
+        patient_name: activeBalloonLead.name || 'N/A',
+        registered_by: regBy
+      };
+
+      console.log("Descontando balón:", payload);
+
+      const res = await fetch('https://victorbot.sosmarketing.agency/webhook/api-add-balloon-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Error en la red');
+
+      alert('Balón asignado y descontado del inventario correctamente.');
+      setBalloonModalOpen(false);
+      fetchLeads(); // Refrescar para ver cambios
+    } catch (error) {
+      console.error(error);
+      alert('Error al asignar el balón. Verifique la conexión con n8n.');
+    }
   };
 
   const handleCreateManual = async (e) => {
@@ -573,10 +617,10 @@ export default function Dashboard() {
               <Menu size={24} />
             </button>
             <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">
-              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : activeTab === 'finances' ? 'Finanzas / Pagos' : activeTab === 'informes' ? 'Informes Médicos' : 'Auditoría'}
+              {activeTab === 'leads' ? 'Gestión de Leads' : activeTab === 'patients' ? 'Historial de Pacientes' : activeTab === 'agenda' ? 'Agenda Médica' : activeTab === 'finances' ? 'Finanzas / Pagos' : activeTab === 'informes' ? 'Informes Médicos' : activeTab === 'inventory' ? 'Inventario Balones' : 'Auditoría'}
             </h1>
           </div>
-          {activeTab !== 'audit' && activeTab !== 'agenda' && (
+          {activeTab !== 'audit' && activeTab !== 'agenda' && activeTab !== 'inventory' && (
             <button onClick={() => setAddModalOpen(true)} className="bg-[#0056b3] text-white px-3 md:px-5 py-2 md:py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-1 md:gap-2 shadow-sm text-sm md:text-base whitespace-nowrap">
               <Plus size={20} className="hidden md:block" /><Plus size={16} className="md:hidden" /> 
               <span className="hidden md:inline">Añadir Registro</span><span className="md:hidden">Añadir</span>
@@ -592,13 +636,15 @@ export default function Dashboard() {
         )}
 
         <div className="overflow-hidden bg-white border border-gray-100 shadow-sm rounded-2xl flex flex-col">
-          {loading && activeTab !== 'audit' ? (
+          {loading && activeTab !== 'audit' && activeTab !== 'inventory' ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400"><Loader2 className="w-8 h-8 mb-4 animate-spin text-[#0056b3]" /><p>Cargando datos...</p></div>
           ) : (
             <div className="overflow-x-auto">
               
               {activeTab === 'informes' ? (
                 <ReportsView leads={leads} updateLead={updateLead} fetchLeads={fetchLeads} />
+              ) : activeTab === 'inventory' ? (
+                <BalloonInventoryView />
               ) : activeTab === 'finances' ? (
                 <FinancesView />
               ) : activeTab === 'audit' ? (
@@ -727,6 +773,7 @@ export default function Dashboard() {
                                 {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit' })}
                               </div>
                             </td>
+                            
                             <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
                               <div className="text-xs text-slate-600"><span className="text-slate-400 font-mono text-[10px]">CI:</span> {lead.cedula || 'N/A'}</div>
                               <div className="text-xs text-slate-600 mt-1"><span className="text-slate-400 font-mono text-[10px]">Edad:</span> {lead.edad ? `${lead.edad} años` : 'N/A'}</div>
@@ -736,6 +783,15 @@ export default function Dashboard() {
                               <div className="flex flex-wrap gap-1">
                                 {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">{t}</span>)}
                               </div>
+                              {(String(lead.treatment || '').toLowerCase().includes('balón') || String(lead.treatment || '').toLowerCase().includes('balon')) && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleOpenBalloonDeduction(lead); }}
+                                  className="mt-2 inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition text-xs font-bold"
+                                  title="Asignar Balón"
+                                >
+                                  <Package size={16} /> Asignar Balón
+                                </button>
+                              )}
                             </td>
                             <td className="px-6 py-4 align-top border-l border-purple-50 hidden md:table-cell">
                               <div className="text-sm font-bold text-slate-800">{lead.initial_weight ? `${lead.initial_weight} kg` : '-'}</div>
@@ -822,6 +878,14 @@ export default function Dashboard() {
                                   <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="w-full mt-1 text-xs bg-white text-purple-700 px-4 py-3 rounded-xl border border-purple-200 shadow-sm font-bold flex justify-center items-center">
                                     Abrir Notas ({parseNotes(lead.notes).length})
                                   </button>
+                                  {(String(lead.treatment || '').toLowerCase().includes('balón') || String(lead.treatment || '').toLowerCase().includes('balon')) && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleOpenBalloonDeduction(lead); }}
+                                      className="w-full mt-1 text-xs bg-blue-50 text-blue-700 px-4 py-3 rounded-xl border border-blue-200 shadow-sm font-bold flex justify-center items-center gap-2"
+                                    >
+                                      <Package size={14} /> Asignar Balón
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -835,7 +899,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activeTab !== 'audit' && totalPages > 1 && (
+          {(activeTab === 'leads' || activeTab === 'patients') && totalPages > 1 && (
             <div className="flex justify-between items-center px-6 py-4 bg-white border-t border-gray-100">
               <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="text-sm font-bold text-[#0056b3] disabled:text-slate-300 hover:bg-blue-50 px-4 py-2 rounded-lg transition flex items-center gap-1"><ChevronLeft size={18}/> Anterior</button>
               <span className="text-sm font-medium text-slate-500">Página {currentPage} de {totalPages}</span>
@@ -864,6 +928,12 @@ export default function Dashboard() {
         activeWeightLead={activeWeightLead} newWeightValue={newWeightValue} 
         setNewWeightValue={setNewWeightValue} handleSaveNewWeight={handleSaveNewWeight} 
         parseHistory={parseHistory}
+      />
+      <BalloonDeductionModal
+        isOpen={balloonModalOpen}
+        onClose={() => { setBalloonModalOpen(false); setActiveBalloonLead(null); }}
+        patient={activeBalloonLead || { name: 'Paciente' }}
+        onConfirm={handleBalloonDeduction}
       />
     </div>
   );

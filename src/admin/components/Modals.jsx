@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, FileText, CheckCircle2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, FileText, CheckCircle2, Loader2, Package } from 'lucide-react';
 import { getTreatmentsArray } from '../utils/helpers';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
@@ -602,5 +602,61 @@ export function CreateAppointmentModal({ isOpen, onClose, leads, handleCreate })
     </div>
   );
 }
+export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm }) {
+  const [selectedBrand, setSelectedBrand] = useState('allurion');
+  const [submitting, setSubmitting] = useState(false);
 
+  if (!isOpen || !patient) return null;
 
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    await onConfirm(selectedBrand);
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+        <div className="bg-amber-500 p-4 text-white flex justify-between items-center">
+          <h3 className="font-bold flex items-center gap-2"><Package size={20}/> Asignar Balón</h3>
+          <button onClick={onClose} className="hover:bg-amber-600 p-1 rounded"><X size={20}/></button>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-slate-500 mb-1">Paciente</p>
+            <p className="font-bold text-lg text-slate-800">{patient.name}</p>
+          </div>
+
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-xs text-amber-800">
+            ⚠️ Esta acción descontará <strong>1 unidad</strong> del inventario físico.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Marca del Balón</label>
+            <select 
+              value={selectedBrand} 
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="w-full p-3 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none"
+            >
+              <option value="allurion">Allurion (4 Meses)</option>
+              <option value="ovalsilhouette">OvalSilhouette (6 Meses)</option>
+              <option value="spatz3">Spatz3 (1 Año)</option>
+            </select>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition">Cancelar</button>
+            <button 
+              onClick={handleSubmit} 
+              disabled={submitting}
+              className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 shadow-sm disabled:opacity-70 flex justify-center items-center gap-2"
+            >
+              {submitting ? <Loader2 className="animate-spin w-4 h-4"/> : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

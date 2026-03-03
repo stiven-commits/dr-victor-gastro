@@ -1,4 +1,4 @@
-﻿import { Users, LogOut, HeartPulse, ShieldAlert, Calendar, DollarSign, FileText, X } from 'lucide-react';
+import { Users, LogOut, HeartPulse, ShieldAlert, Calendar, DollarSign, FileText, X, Package } from 'lucide-react';
 import logoBlue from '../../assets/logo-dr-victor-horizontal-300x66.png';
 
 export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLogout, mobileMenuOpen, setMobileMenuOpen }) {
@@ -52,6 +52,9 @@ export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLo
           <button onClick={() => handleTabClick('informes')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'informes' ? 'bg-[#0056b3] text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
             <FileText size={20} /> <span className="font-medium">Informes Médicos</span>
           </button>
+          <button onClick={() => handleTabClick('inventory')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'inventory' ? 'bg-[#0056b3] text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-[#0056b3]'}`}>
+            <Package size={20} /> <span className="font-medium">Inventario Balones</span>
+          </button>
 
           {currentUser.role === 'admin' && (
             <button onClick={() => handleTabClick('audit')} className={`flex items-center w-full gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'audit' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>
@@ -69,5 +72,4 @@ export default function Sidebar({ currentUser, activeTab, setActiveTab, handleLo
     </>
   );
 }
-
 
