@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Search, CreditCard, X, Loader2, ChevronLeft, ChevronRight, Calendar, Printer } from 'lucide-react';
+import { Search, CreditCard, Loader2, ChevronLeft, ChevronRight, Calendar, Printer, RotateCcw } from 'lucide-react';
 import FinancesPrint from './FinancesPrint';
-import { PaymentModal, AdjustModal, DetailsModal } from './FinanceModals';
+import { PaymentModal, AdjustModal, DetailsModal, ReverseModal } from './FinanceModals';
 import logoDr from '../../assets/logo-dr-victor-horizontal-2.png';
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
@@ -10,15 +10,29 @@ const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-payment'
 const ADJUST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-adjust-price';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
-const getStatus = (row) => row?.payment_status || row?.status || 'Pendiente';
+// --- 1. LÓGICA DE ESTADO INTELIGENTE (Detecta Reverso) ---
+const getStatus = (row) => {
+  // Verificamos si el último movimiento fue un reverso
+  if (row?.payments_history && row.payments_history.length > 0) {
+    // Ordenamos temporalmente para ver el último pago real
+    const lastPayment = [...row.payments_history].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0];
+    if (lastPayment && lastPayment.payment_method === 'Reverso') {
+      return 'Reverso';
+    }
+  }
+  return row?.payment_status || row?.status || 'Pendiente';
+};
+
 const getPatientName = (row) => row?.patient_name || row?.name || 'N/A';
 const getCedula = (row) => row?.cedula || row?.patient_cedula || 'N/A';
 const getLeadTreatmentId = (row) => row?.lead_treatment_id || row?.id;
 const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// --- 2. BADGE DE ESTADO ACTUALIZADO (Con color Morado para Reverso) ---
 const getStatusBadge = (status) => {
   if (status === 'Pagado') return 'bg-green-100 text-green-700 border-green-200';
   if (status === 'Parcial') return 'bg-amber-100 text-amber-700 border-amber-200';
+  if (status === 'Reverso') return 'bg-purple-100 text-purple-700 border-purple-200'; // <--- NUEVO ESTILO
   return 'bg-rose-100 text-rose-700 border-rose-200';
 };
 
@@ -75,6 +89,11 @@ export default function FinancesView() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [detailsRecord, setDetailsRecord] = useState(null);
 
+  // ESTADOS PARA REVERSO
+  const [isReverseModalOpen, setIsReverseModalOpen] = useState(false);
+  const [reverseForm, setReverseForm] = useState({ amount_usd: '', reference_number: '' });
+  const [submittingReverse, setSubmittingReverse] = useState(false);
+
   const fetchFinances = async () => {
     setLoading(true);
     try {
@@ -116,38 +135,63 @@ export default function FinancesView() {
     const parsedUsd = parseLocaleNumber(paymentForm.amount_usd);
     if (Number.isNaN(parsedUsd) || parsedUsd <= 0) return alert('Monto inválido');
     setSubmittingPayment(true);
-    
-    // Obtener ID con fallback seguro
-    const leadTreatmentId = getLeadTreatmentId(selectedRecord);
-    
-    // Obtener usuario con fallback seguro
-    const regBy = (currentUser && (currentUser.name || currentUser.username)) 
-      ? (currentUser.name || currentUser.username) 
-      : 'Sistema';
-
     try {
-      // CONSTRUCCIÓN DEL PAYLOAD BLINDADO (Sin 'undefined')
+      const regBy = currentUser?.name || currentUser?.username || 'Sistema';
       const payload = {
-        lead_treatment_id: leadTreatmentId || null, 
+        lead_treatment_id: getLeadTreatmentId(selectedRecord) || null,
         amount_usd: parsedUsd || 0,
         payment_method: paymentForm.payment_method || 'Zelle',
-        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')),
+        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')) || '',
         exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseLocaleNumber(paymentForm.exchange_rate_bcv) : null,
         amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
         registered_by: regBy
       };
-      
-      console.log("Enviando pago:", payload); // Para depuración en consola
-
       await fetch(POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
         body: JSON.stringify(payload)
       });
       setIsModalOpen(false);
-      setSelectedRecord(null);
       fetchFinances();
-    } catch (error) { console.error('Error al pagar:', error); } finally { setSubmittingPayment(false); }
+    } catch (error) { console.error(error); } finally { setSubmittingPayment(false); }
+  };
+
+  const handleOpenReverseModal = (record) => {
+    setSelectedRecord(record);
+    const paidStr = parseFloat(record.amount_paid || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    setReverseForm({ amount_usd: paidStr, reference_number: '' });
+    setIsReverseModalOpen(true);
+  };
+
+  const handleReverseSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedRecord) return;
+    const parsedAmount = parseLocaleNumber(reverseForm.amount_usd);
+    const maxReversible = parseFloat(selectedRecord.amount_paid || 0);
+
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) return alert('Monto inválido');
+    if (parsedAmount > maxReversible + 0.01) return alert(`No puedes reversar más de lo pagado ($${maxReversible})`);
+
+    setSubmittingReverse(true);
+    try {
+      const regBy = currentUser?.name || currentUser?.username || 'Sistema';
+      const payload = {
+        lead_treatment_id: getLeadTreatmentId(selectedRecord) || null,
+        amount_usd: -Math.abs(parsedAmount),
+        payment_method: 'Reverso',
+        reference_number: reverseForm.reference_number || 'Devolución',
+        exchange_rate_bcv: null,
+        amount_bs: null,
+        registered_by: regBy
+      };
+      await fetch(POST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      setIsReverseModalOpen(false);
+      fetchFinances();
+    } catch (error) { console.error('Error en reverso:', error); } finally { setSubmittingReverse(false); }
   };
 
   const handleAdjustSubmit = async (e) => {
@@ -171,6 +215,7 @@ export default function FinancesView() {
   };
 
   const filteredFinances = finances.filter((row) => {
+    // Usamos el nuevo getStatus inteligente
     const status = getStatus(row);
     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
     const term = searchTerm.trim().toLowerCase();
@@ -233,9 +278,6 @@ export default function FinancesView() {
   const totalPages = Math.ceil(filteredFinances.length / ITEMS_PER_PAGE) || 1;
   const paginatedFinances = filteredFinances.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const selectedBalance = parseFloat(selectedRecord?.balance || 0);
-  const showBsFields = paymentForm.payment_method === 'Pago Móvil' || paymentForm.payment_method === 'Transferencia (Bs)';
-
   return (
     <div className="w-full">
       <div className="p-4 md:p-6 no-print">
@@ -270,7 +312,7 @@ export default function FinancesView() {
             </div>
             <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-bold text-[#0056b3]"><span>TOTAL</span><span>${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           </div>
-          <div className="bg-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-center text-white h-48 relative overflow-hidden">
+          <div className="bg-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-center text-white h-48">
             <div className="mb-4"><h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingreso del Periodo</h3><p className="text-3xl font-bold text-green-400">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
           </div>
         </div>
@@ -278,7 +320,16 @@ export default function FinancesView() {
         {/* Buscador y Tabla */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="relative md:col-span-1"><Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre o cédula..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"><option value="Todos">Edo. Pago: Todos</option><option value="Pendiente">Pendiente</option><option value="Parcial">Parcial</option><option value="Pagado">Pagado</option></select>
+          
+          {/* 3. FILTRO DE ESTADO ACTUALIZADO */}
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
+            <option value="Todos">Edo. Pago: Todos</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Parcial">Parcial</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Reverso">Reverso</option> {/* NUEVA OPCIÓN */}
+          </select>
+
           <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"><option value="Todos">Locación: Todas</option>{VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}</select>
         </div>
 
@@ -292,7 +343,7 @@ export default function FinancesView() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginatedFinances.length === 0 ? <tr><td colSpan="8" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
-                  const status = item.payment_status || 'Pendiente';
+                  const status = getStatus(item); // Usamos la nueva lógica
                   const balance = parseFloat(item.balance || 0);
                   const adjustment = parseFloat(item.agreed_price || 0) - parseFloat(item.base_price || item.agreed_price || 0);
                   return (
@@ -303,8 +354,21 @@ export default function FinancesView() {
                       <td className="px-4 py-3 align-top font-semibold">{adjustment !== 0 ? <span className={`font-mono px-2 py-0.5 rounded-full text-[11px] border ${adjustment > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{adjustment > 0 ? '+' : ''}{adjustment.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span> : <span className="text-slate-300">-</span>}</td>
                       <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-green-600">{parseFloat(item.amount_paid || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{parseFloat(item.balance || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
-                      <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{item.payment_status}</span></td>
-                      <td className="px-4 py-3 align-top"><div className="flex gap-2 justify-center">{status !== 'Pagado' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">⚙️ Ajuste</button>}{parseFloat(item.amount_paid || 0) > 0 && <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">📋 Detalles</button>}{balance > 0 && <button onClick={() => handleOpenPaymentModal(item)} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700"><CreditCard className="w-4 h-4" /> Pagar</button>}</div></td>
+                      <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{status}</span></td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {status !== 'Pagado' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">⚙️ Ajuste</button>}
+                          
+                          {parseFloat(item.amount_paid || 0) > 0 && (
+                            <>
+                              <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">📋 Detalles</button>
+                              <button onClick={() => handleOpenReverseModal(item)} className="bg-rose-100 text-rose-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-rose-200" title="Reversar"><RotateCcw size={16}/></button>
+                            </>
+                          )}
+                          
+                          {balance > 0 && <button onClick={() => handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) })} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">💵 Pagar</button>}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -322,27 +386,12 @@ export default function FinancesView() {
         )}
       </div>
 
-      <PaymentModal 
-        isOpen={isModalOpen} onClose={handleClosePaymentModal} record={selectedRecord} 
-        form={paymentForm} setForm={setPaymentForm} onSubmit={handlePaymentSubmit} submitting={submittingPayment} formatInput={formatNumberInput} 
-      />
-      <AdjustModal 
-        isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} record={selectedRecord} 
-        form={adjustForm} setForm={setAdjustForm} onSubmit={handleAdjustSubmit} submitting={submittingAdjust} formatInput={formatNumberInput} 
-      />
-      <DetailsModal 
-        isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} record={detailsRecord} 
-      />
+      <PaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} record={selectedRecord} form={paymentForm} setForm={setPaymentForm} onSubmit={handlePaymentSubmit} submitting={submittingPayment} formatInput={formatNumberInput} />
+      <AdjustModal isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} record={selectedRecord} form={adjustForm} setForm={setAdjustForm} onSubmit={handleAdjustSubmit} submitting={submittingAdjust} formatInput={formatNumberInput} />
+      <DetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} record={detailsRecord} />
+      <ReverseModal isOpen={isReverseModalOpen} onClose={() => setIsReverseModalOpen(false)} record={selectedRecord} form={reverseForm} setForm={setReverseForm} onSubmit={handleReverseSubmit} submitting={submittingReverse} formatInput={formatNumberInput} />
 
-      <FinancesPrint 
-        payments={periodPayments} 
-        totalIncome={totalPeriodIncome} 
-        incomeByMethod={incomeByMethod} 
-        incomeByTreatment={incomeByTreatment} 
-        dateRange={{ start: startDate, end: endDate }} 
-        currentUser={currentUser} 
-        logo={logoDr} 
-      />
+      <FinancesPrint payments={periodPayments} totalIncome={totalPeriodIncome} incomeByMethod={incomeByMethod} incomeByTreatment={incomeByTreatment} dateRange={{ start: startDate, end: endDate }} currentUser={currentUser} logo={logoDr} />
     </div>
   );
 }

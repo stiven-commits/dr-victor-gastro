@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CreditCard, Loader2 } from 'lucide-react';
+import { X, CreditCard, Loader2, RotateCcw } from 'lucide-react'; // Importamos icono para reverso
 
 const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const getPatientName = (row) => row?.patient_name || row?.name || 'N/A';
@@ -151,6 +151,62 @@ export function DetailsModal({ isOpen, onClose, record }) {
             ))
           )}
         </div>
+      </div>
+    </div>
+  );  
+}
+export function ReverseModal({ isOpen, onClose, record, form, setForm, onSubmit, submitting, formatInput }) {
+  if (!isOpen || !record) return null;
+  
+  // Calculamos cuánto se puede reversar como máximo (lo que ha pagado)
+  const paidAmount = parseFloat(record.amount_paid || 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between p-4 bg-rose-700 text-white">
+          <h3 className="font-bold flex items-center gap-2"><RotateCcw size={20}/> Reversar Pago</h3>
+          <button type="button" onClick={onClose} className="hover:text-rose-200 transition"><X size={20} /></button>
+        </div>
+        
+        <form onSubmit={onSubmit} className="p-5 space-y-4">
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-100 text-sm">
+            <p className="text-slate-600 mb-1">Paciente: <span className="font-bold text-slate-800">{getPatientName(record)}</span></p>
+            <p className="text-slate-600">Monto disponible para reversar: <span className="font-bold text-rose-700">{formatUsd(paidAmount)}</span></p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1 text-slate-700">Monto a Reversar (USD)</label>
+            <input 
+              type="text" 
+              required 
+              value={form.amount_usd} 
+              onChange={(e) => setForm({ ...form, amount_usd: formatInput(e.target.value) })} 
+              className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-rose-500 font-bold text-rose-700" 
+              placeholder="Ej: 50,00" 
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Este monto se restará de lo pagado y aumentará la deuda.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1 text-slate-700">Motivo del Reverso</label>
+            <input 
+              type="text" 
+              required 
+              value={form.reference_number} 
+              onChange={(e) => setForm({ ...form, reference_number: e.target.value })} 
+              className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-rose-500" 
+              placeholder="Ej: Cancelación de tratamiento, Devolución..." 
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition" disabled={submitting}>Cancelar</button>
+            <button type="submit" className="px-5 py-2 bg-rose-700 text-white rounded-lg font-bold hover:bg-rose-800 shadow-sm transition inline-flex items-center gap-2 disabled:opacity-70" disabled={submitting}>
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Confirmar Reverso
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
