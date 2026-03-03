@@ -10,15 +10,10 @@ const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-payment'
 const ADJUST_URL = 'https://victorbot.sosmarketing.agency/webhook/api-adjust-price';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
-// --- 1. LÓGICA DE ESTADO INTELIGENTE (Detecta Reverso) ---
 const getStatus = (row) => {
-  // Verificamos si el último movimiento fue un reverso
   if (row?.payments_history && row.payments_history.length > 0) {
-    // Ordenamos temporalmente para ver el último pago real
     const lastPayment = [...row.payments_history].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0];
-    if (lastPayment && lastPayment.payment_method === 'Reverso') {
-      return 'Reverso';
-    }
+    if (lastPayment && lastPayment.payment_method === 'Reverso') return 'Reverso';
   }
   return row?.payment_status || row?.status || 'Pendiente';
 };
@@ -28,11 +23,10 @@ const getCedula = (row) => row?.cedula || row?.patient_cedula || 'N/A';
 const getLeadTreatmentId = (row) => row?.lead_treatment_id || row?.id;
 const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// --- 2. BADGE DE ESTADO ACTUALIZADO (Con color Morado para Reverso) ---
 const getStatusBadge = (status) => {
   if (status === 'Pagado') return 'bg-green-100 text-green-700 border-green-200';
   if (status === 'Parcial') return 'bg-amber-100 text-amber-700 border-amber-200';
-  if (status === 'Reverso') return 'bg-purple-100 text-purple-700 border-purple-200'; // <--- NUEVO ESTILO
+  if (status === 'Reverso') return 'bg-purple-100 text-purple-700 border-purple-200';
   return 'bg-rose-100 text-rose-700 border-rose-200';
 };
 
@@ -77,6 +71,7 @@ export default function FinancesView() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 9;
 
+  // Modals States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ amount_usd: '', payment_method: 'Zelle', reference_number: '', exchange_rate_bcv: '', amount_bs: '' });
@@ -89,7 +84,7 @@ export default function FinancesView() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [detailsRecord, setDetailsRecord] = useState(null);
 
-  // ESTADOS PARA REVERSO
+  // Estados Reverso
   const [isReverseModalOpen, setIsReverseModalOpen] = useState(false);
   const [reverseForm, setReverseForm] = useState({ amount_usd: '', reference_number: '' });
   const [submittingReverse, setSubmittingReverse] = useState(false);
@@ -129,31 +124,52 @@ export default function FinancesView() {
 
   const handleClosePaymentModal = () => { setIsModalOpen(false); setSelectedRecord(null); };
 
+  // --- CORRECCIÓN CRÍTICA DEL BOTÓN PAGAR ---
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     if (!selectedRecord) return;
     const parsedUsd = parseLocaleNumber(paymentForm.amount_usd);
     if (Number.isNaN(parsedUsd) || parsedUsd <= 0) return alert('Monto inválido');
+    
     setSubmittingPayment(true);
+    
     try {
+      // 1. Obtener usuario de forma segura
       const regBy = currentUser?.name || currentUser?.username || 'Sistema';
+      
+      // 2. Obtener ID de tratamiento de forma segura
+      const tId = getLeadTreatmentId(selectedRecord);
+      
+      // 3. Construir Payload BLINDADO (Evita undefined a toda costa)
       const payload = {
-        lead_treatment_id: getLeadTreatmentId(selectedRecord) || null,
-        amount_usd: parsedUsd || 0,
+        lead_treatment_id: tId || null, 
+        amount_usd: parsedUsd,
         payment_method: paymentForm.payment_method || 'Zelle',
-        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')) || '',
+        // Si es efectivo, enviamos cadena vacía. Si es otro, la referencia. Si es undefined, cadena vacía.
+        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')),
         exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseLocaleNumber(paymentForm.exchange_rate_bcv) : null,
         amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
         registered_by: regBy
       };
-      await fetch(POST_URL, {
+      
+      console.log("Enviando pago (Payload):", payload); // Para depuración
+
+      const response = await fetch(POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
         body: JSON.stringify(payload)
       });
+      
+      if (!response.ok) throw new Error('Error en respuesta del servidor');
+
       setIsModalOpen(false);
-      fetchFinances();
-    } catch (error) { console.error(error); } finally { setSubmittingPayment(false); }
+      fetchFinances(); // Recargar datos
+    } catch (error) { 
+      console.error('Error al procesar pago:', error); 
+      alert('Hubo un error al registrar el pago. Verifique los datos.');
+    } finally { 
+      setSubmittingPayment(false); 
+    }
   };
 
   const handleOpenReverseModal = (record) => {
@@ -175,6 +191,7 @@ export default function FinancesView() {
     setSubmittingReverse(true);
     try {
       const regBy = currentUser?.name || currentUser?.username || 'Sistema';
+      
       const payload = {
         lead_treatment_id: getLeadTreatmentId(selectedRecord) || null,
         amount_usd: -Math.abs(parsedAmount),
@@ -184,11 +201,13 @@ export default function FinancesView() {
         amount_bs: null,
         registered_by: regBy
       };
+
       await fetch(POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
         body: JSON.stringify(payload)
       });
+
       setIsReverseModalOpen(false);
       fetchFinances();
     } catch (error) { console.error('Error en reverso:', error); } finally { setSubmittingReverse(false); }
@@ -215,7 +234,6 @@ export default function FinancesView() {
   };
 
   const filteredFinances = finances.filter((row) => {
-    // Usamos el nuevo getStatus inteligente
     const status = getStatus(row);
     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
     const term = searchTerm.trim().toLowerCase();
@@ -241,9 +259,11 @@ export default function FinancesView() {
   let incomeByMethod = {};
   let incomeByTreatment = {};
   let totalPeriodIncome = 0;
+  let totalPendingBalance = 0;
   let periodPayments = [];
 
   filteredFinances.forEach(item => {
+    totalPendingBalance += parseFloat(item.balance || 0); // Acumulación del saldo global
     const totalCost = parseFloat(item.agreed_price || item.agreed_price_usd || 0);
     const sortedPayments = [...(item.payments_history || [])].sort((a,b) => new Date(a.payment_date) - new Date(b.payment_date));
     let accumulatedPaid = 0;
@@ -277,6 +297,9 @@ export default function FinancesView() {
   periodPayments.sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
   const totalPages = Math.ceil(filteredFinances.length / ITEMS_PER_PAGE) || 1;
   const paginatedFinances = filteredFinances.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const selectedBalance = parseFloat(selectedRecord?.balance || 0);
+  const showBsFields = paymentForm.payment_method === 'Pago Móvil' || paymentForm.payment_method === 'Transferencia (Bs)';
 
   return (
     <div className="w-full">
@@ -312,8 +335,17 @@ export default function FinancesView() {
             </div>
             <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-bold text-[#0056b3]"><span>TOTAL</span><span>${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           </div>
-          <div className="bg-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-center text-white h-48">
-            <div className="mb-4"><h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingreso del Periodo</h3><p className="text-3xl font-bold text-green-400">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
+          <div className="bg-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-center text-white h-48 relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
+            <div className="mb-4">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingreso del Periodo</h3>
+              <p className="text-3xl font-bold text-green-400">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+            {/* AQUÍ ESTÁ EL BLOQUE RESTAURADO */}
+            <div>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Cuentas por Cobrar (Global)</h3>
+              <p className="text-xl font-medium text-rose-300">${totalPendingBalance.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
           </div>
         </div>
 
@@ -321,13 +353,12 @@ export default function FinancesView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="relative md:col-span-1"><Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre o cédula..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
           
-          {/* 3. FILTRO DE ESTADO ACTUALIZADO */}
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
             <option value="Todos">Edo. Pago: Todos</option>
             <option value="Pendiente">Pendiente</option>
             <option value="Parcial">Parcial</option>
             <option value="Pagado">Pagado</option>
-            <option value="Reverso">Reverso</option> {/* NUEVA OPCIÓN */}
+            <option value="Reverso">Reverso</option>
           </select>
 
           <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"><option value="Todos">Locación: Todas</option>{VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}</select>
@@ -343,7 +374,7 @@ export default function FinancesView() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginatedFinances.length === 0 ? <tr><td colSpan="8" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
-                  const status = getStatus(item); // Usamos la nueva lógica
+                  const status = getStatus(item);
                   const balance = parseFloat(item.balance || 0);
                   const adjustment = parseFloat(item.agreed_price || 0) - parseFloat(item.base_price || item.agreed_price || 0);
                   return (
@@ -357,12 +388,12 @@ export default function FinancesView() {
                       <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{status}</span></td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          {status !== 'Pagado' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">⚙️ Ajuste</button>}
+                          {status !== 'Pagado' && status !== 'Reverso' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">⚙️ Ajuste</button>}
                           
                           {parseFloat(item.amount_paid || 0) > 0 && (
                             <>
                               <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">📋 Detalles</button>
-                              <button onClick={() => handleOpenReverseModal(item)} className="bg-rose-100 text-rose-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-rose-200" title="Reversar"><RotateCcw size={16}/></button>
+                              <button onClick={() => handleOpenReverseModal(item)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1" title="Reversar Pago">↩️</button>
                             </>
                           )}
                           
