@@ -200,33 +200,42 @@ export default function Dashboard() {
     if (!activeBalloonLead) return;
     
     try {
+      // Usamos 'Sistema' si no hay usuario logueado, para evitar errores
       const regBy = currentUser?.name || currentUser?.username || 'Sistema';
       
       const payload = {
         brand_id: brandId || 'allurion',
         quantity: 1,
         type: 'exit',
-        lead_id: activeBalloonLead.id || null,
+        lead_id: activeBalloonLead.id,
         patient_name: activeBalloonLead.name || 'N/A',
         registered_by: regBy
       };
 
-      console.log("Descontando balón:", payload);
-
-      const res = await fetch('https://victorbot.sosmarketing.agency/webhook/api-add-balloon-stock', {
+      // Llamada a n8n
+      await fetch('https://victorbot.sosmarketing.agency/webhook/api-add-balloon-stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': API_KEY },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Error en la red');
+      // Registrar nota automática en el paciente
+      const currentNotes = parseNotes(activeBalloonLead.notes);
+      const newNote = { 
+        id: Date.now().toString(), 
+        date: new Date().toISOString(), 
+        content: `Se asignó balón gástrico (${brandId}) del inventario.`, 
+        author: 'Sistema' 
+      };
+      const updatedNotesString = JSON.stringify([...currentNotes, newNote]);
+      updateLead(activeBalloonLead.id, { notes: updatedNotesString });
 
       alert('Balón asignado y descontado del inventario correctamente.');
       setBalloonModalOpen(false);
-      fetchLeads(); // Refrescar para ver cambios
+      fetchLeads(); // Recargar para ver la nota
     } catch (error) {
       console.error(error);
-      alert('Error al asignar el balón. Verifique la conexión con n8n.');
+      alert('Error al procesar la solicitud. Verifique la conexión.');
     }
   };
 
