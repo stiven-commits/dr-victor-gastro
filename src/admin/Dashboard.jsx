@@ -26,6 +26,26 @@ export default function Dashboard() {
   // --- ESTADOS PARA INVENTARIO ---
   const [balloonModalOpen, setBalloonModalOpen] = useState(false);
   const [activeBalloonLead, setActiveBalloonLead] = useState(null);
+  const [balloonStock, setBalloonStock] = useState([]); // <--- NUEVO ESTADO
+
+  // Función para obtener stock actualizado
+  const fetchBalloonStock = async () => {
+    try {
+      const res = await fetch(`${GET_INVENTORY_URL}?t=${new Date().getTime()}`, {
+        headers: { 'Authorization': API_KEY }
+      });
+      const text = await res.text();
+      if (!text) return;
+      
+      let data = JSON.parse(text);
+      if (Array.isArray(data)) data = data.length > 0 ? data[0] : {};
+      
+      const summary = data.summary || [];
+      setBalloonStock(Array.isArray(summary) ? summary : [summary]);
+    } catch (e) {
+      console.error("Error cargando stock:", e);
+    }
+  };
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('crmActiveTab');
     if (savedTab === 'agenda') return 'leads';
@@ -86,6 +106,7 @@ export default function Dashboard() {
   const N8N_ADD_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-finance-treatment';
   const N8N_DEL_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-delete-finance-treatment';
   const N8N_DELETE_URL = 'https://victorbot.sosmarketing.agency/webhook/delete-lead';
+  const GET_INVENTORY_URL = 'https://victorbot.sosmarketing.agency/webhook/api-balloon-inventory';
 
   // Efectos (Carga de datos)
   useEffect(() => { 
@@ -192,6 +213,7 @@ export default function Dashboard() {
   };
 
   const handleOpenBalloonDeduction = (lead) => {
+    fetchBalloonStock();
     setActiveBalloonLead(lead);
     setBalloonModalOpen(true);
   };
@@ -943,6 +965,7 @@ export default function Dashboard() {
         onClose={() => { setBalloonModalOpen(false); setActiveBalloonLead(null); }}
         patient={activeBalloonLead || { name: 'Paciente' }}
         onConfirm={handleBalloonDeduction}
+        balloonStock={balloonStock}
       />
     </div>
   );

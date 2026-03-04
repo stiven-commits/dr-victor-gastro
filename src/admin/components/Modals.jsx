@@ -1,65 +1,320 @@
 ﻿import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, FileText, CheckCircle2, Loader2, Package } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, FileText, CheckCircle2, Loader2, Package, Pill, Activity, Plus, Printer, History } from 'lucide-react';
 import { getTreatmentsArray } from '../utils/helpers';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
 
-export function PatientModal({ isOpen, onClose, medicalData, setMedicalData, handleHeightChange, handleSavePatient, leadName }) {
+export function PatientModal({ isOpen, onClose, medicalData, setMedicalData, handleHeightChange, handleSavePatient, leadName, selectedPatient, setRecipeToPrint, setIsPrintOpen }) {
+  
+  // --- ESTADOS INTERNOS DEL MODAL (Para que funcione independiente del Dashboard) ---
+  const [activeTab, setActiveTab] = useState('clinical');
+  
+  // Estados para Récipes
+  const [recipeForm, setRecipeForm] = useState({ medications: [], exams: [], indicaciones: '' });
+  const [medSearch, setMedSearch] = useState('');
+  const [examSearch, setExamSearch] = useState('');
+  const [showMedDropdown, setShowMedDropdown] = useState(false);
+  const [showExamDropdown, setShowExamDropdown] = useState(false);
+  const [currentMed, setCurrentMed] = useState({ name: '', dosage: '', frequency: '', duration: '' });
+  const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+
+  // Datos para Autocompletado
+  const GASTRO_VADEMECUM = ["Omeprazol 20mg", "Esomeprazol 40mg", "Lansoprazol 30mg", "Pantoprazol 40mg", "Buscapina Compositum", "Ciprofloxacina 500mg", "Metronidazol 500mg", "Levofloxacina 750mg", "Amoxicilina/Clavulánico 875/125mg", "Sucralfato 1g", "Domperidona 10mg", "Ondansetron 8mg", "Plidex (Diaze, Alipr, Simet)", "Librax", "Rifaximina 550mg", "Probióticos (Enterogermina)", "Simeticona 40mg", "Bonagel", "Ditopax", "Leche de Magnesia"];
+  const COMMON_EXAMS = ["Perfil 20", "Hematología Completa", "Urea y Creatinina", "Transaminasas (TGO/TGP)", "Bilirrubina Total y Fraccionada", "Amilasa y Lipasa", "Heces y Orina", "Helicobacter Pylori (Heces)", "Coprocultivo", "Sangre Oculta en Heces", "Ecografía Abdominal", "Endoscopia Digestiva Superior", "Colonoscopia", "Tomografía Abdominal", "Resonancia Magnética Abdominal", "Ph-metría", "Manometría Esofágica", "Test de Aliento"];
+
+  // Helpers
+  const parseJSON = (str) => { try { return str ? JSON.parse(str) : []; } catch (e) { return []; } };
+  const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
+
+  // Lógica Interna de Récipes
+  const handleAddMedication = () => {
+    if (!currentMed.name) return;
+    setRecipeForm({ ...recipeForm, medications: [...recipeForm.medications, { ...currentMed, id: Date.now() }] });
+    setCurrentMed({ name: '', dosage: '', frequency: '', duration: '' });
+    setMedSearch('');
+  };
+
+  const handleRemoveMedication = (id) => {
+    setRecipeForm({ ...recipeForm, medications: recipeForm.medications.filter(m => m.id !== id) });
+  };
+
+  const handleAddExam = () => {
+    if (!examSearch) return;
+    setRecipeForm({ ...recipeForm, exams: [...recipeForm.exams, { name: examSearch, id: Date.now() }] });
+    setExamSearch('');
+  };
+
+  const handleRemoveExam = (id) => {
+    setRecipeForm({ ...recipeForm, exams: recipeForm.exams.filter(e => e.id !== id) });
+  };
+
+  const onSaveRecipe = async (e) => {
+    e.preventDefault();
+    if (!selectedPatient) return;
+    setIsSavingRecipe(true);
+    
+    // Construir el nuevo objeto de récipe
+    const newRecipe = {
+      id: Date.now(),
+      date: new Date().toISOString(),
+      author: 'Dr. Víctor', // Podrías pasar el usuario real si quisieras
+      medications: recipeForm.medications,
+      exams: recipeForm.exams,
+      indicaciones: recipeForm.indicaciones
+    };
+
+    const currentRecipes = parseJSON(selectedPatient.medical_recipes);
+    const updatedRecipes = [...currentRecipes, newRecipe];
+
+    try {
+      // Llamada directa a la API desde el Modal (para no depender del Dashboard)
+      await fetch('https://victorbot.sosmarketing.agency/webhook/update-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer v2ew5w8mAq3' },
+        body: JSON.stringify({
+          id: selectedPatient.id,
+          medical_recipes: JSON.stringify(updatedRecipes),
+          updated_by: 'Dr. Víctor'
+        })
+      });
+      
+      // Limpiar formulario y cerrar o mostrar éxito
+      setRecipeForm({ medications: [], exams: [], indicaciones: '' });
+      alert('Récipe guardado correctamente.');
+      if(onClose) onClose(); // Cerrar modal o recargar si prefieres
+      // Nota: Para ver el cambio reflejado en la lista, el Dashboard debería recargar los leads.
+      // Como estamos "aislados", lo ideal sería llamar a una función refresh del padre, pero con cerrar basta por ahora.
+    } catch (error) {
+      console.error(error);
+      alert('Error guardando el récipe');
+    } finally {
+      setIsSavingRecipe(false);
+    }
+  };
+
   if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-full">
-        <div className="flex justify-between items-center bg-[#0056b3] p-4 text-white"><h3 className="font-bold">Datos Clínicos del Paciente</h3><button onClick={onClose}><X size={20}/></button></div>
-        <form onSubmit={handleSavePatient} className="p-6 space-y-4 overflow-y-auto">
-          <p className="text-sm text-slate-600 mb-2">Ingresa los datos base para iniciar la ficha clínica de <strong className="font-bold text-slate-800">{leadName}</strong>.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl flex flex-col max-h-full overflow-hidden">
+        
+        {/* ENCABEZADO CON TABS */}
+        <div className="bg-[#0056b3] p-0 text-white flex flex-col">
+          <div className="flex justify-between items-center p-4">
+            <div>
+              <h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20}/> Historia Clínica Digital</h3>
+              <p className="text-xs text-blue-100 opacity-80 font-mono mt-0.5">Paciente: {leadName}</p>
+            </div>
+            <button onClick={onClose} className="hover:bg-blue-700/50 p-1.5 rounded-lg transition"><X size={20}/></button>
+          </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={medicalData.cedula} onChange={(e) => setMedicalData({...medicalData, cedula: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Ej: V-12345678" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={medicalData.edad} onChange={(e) => setMedicalData({...medicalData, edad: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Años" min="1" max="120" /></div>
+          {/* BARRA DE NAVEGACIÓN */}
+          <div className="flex px-4 gap-1">
+            <button 
+              onClick={() => setActiveTab('clinical')}
+              className={`px-4 py-2.5 text-sm font-bold rounded-t-lg transition flex items-center gap-2 ${activeTab === 'clinical' ? 'bg-white text-[#0056b3]' : 'bg-blue-800/30 text-blue-100 hover:bg-blue-800/50'}`}
+            >
+              <FileText size={16}/> Datos Clínicos
+            </button>
+            <button 
+              onClick={() => setActiveTab('recipes')}
+              className={`px-4 py-2.5 text-sm font-bold rounded-t-lg transition flex items-center gap-2 ${activeTab === 'recipes' ? 'bg-white text-[#0056b3]' : 'bg-blue-800/30 text-blue-100 hover:bg-blue-800/50'}`}
+            >
+              <Pill size={16}/> Récipes y Órdenes
+            </button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1">Sexo</label>
-              <select value={medicalData.sexo} onChange={(e) => setMedicalData({...medicalData, sexo: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white">
-                <option value="">Seleccionar</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Femenino">Femenino</option>
-              </select>
-            </div>
-            <div><label className="block text-sm font-semibold mb-1">Estatura (m)</label><input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
-          </div>
+        {/* CONTENIDO DEL MODAL (SCROLLABLE) */}
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6">
+          
+          {/* --- PESTAÑA 1: DATOS CLÍNICOS --- */}
+          {activeTab === 'clinical' && (
+            <form onSubmit={handleSavePatient} className="space-y-6 animate-in slide-in-from-left-4 duration-300">
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Identificación</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Cédula de Identidad</label><input type="text" value={medicalData.cedula} onChange={(e) => setMedicalData({...medicalData, cedula: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none font-mono" placeholder="V-12345678" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Edad</label><input type="number" value={medicalData.edad} onChange={(e) => setMedicalData({...medicalData, edad: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="0" min="1" max="120" /></div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1.5">Sexo</label>
+                      <select value={medicalData.sexo} onChange={(e) => setMedicalData({...medicalData, sexo: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none bg-white">
+                        <option value="">Seleccionar</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Femenino">Femenino</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-          <div><label className="block text-sm font-semibold mb-1">Peso Inicial (kg)</label><input type="number" step="0.01" required value={medicalData.weight} onChange={(e) => setMedicalData({...medicalData, weight: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Ej: 85.5" /></div>
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Datos Físicos</h4>
+                <div className="grid grid-cols-2 gap-5">
+                  <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Peso Inicial (kg)</label><input type="number" step="0.01" required value={medicalData.weight} onChange={(e) => setMedicalData({...medicalData, weight: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none font-bold text-slate-700" placeholder="0.00" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Estatura (m)</label><input type="text" required value={medicalData.height} onChange={handleHeightChange} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none font-bold text-slate-700" placeholder="1.70" maxLength={4} /></div>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1">Estado</label>
-              <select value={medicalData.state || ''} onChange={(e) => setMedicalData({...medicalData, state: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white">
-                <option value="">Seleccione un estado</option>
-                {VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">Dirección Exacta</label>
-              <input type="text" value={medicalData.address || ''} onChange={(e) => setMedicalData({...medicalData, address: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Av, Calle, Casa..." />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">¿Fuma?</label><select value={medicalData.smokes || ''} onChange={(e) => setMedicalData({...medicalData, smokes: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white"><option value="">Seleccionar</option><option value="Si">Sí</option><option value="No">No</option></select></div>
-            <div><label className="block text-sm font-semibold mb-1">¿Asmático?</label><select value={medicalData.asthmatic || ''} onChange={(e) => setMedicalData({...medicalData, asthmatic: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white"><option value="">Seleccionar</option><option value="Si">Sí</option><option value="No">No</option></select></div>
-            <div><label className="block text-sm font-semibold mb-1">¿Alergia a meds?</label><select value={medicalData.allergic || ''} onChange={(e) => setMedicalData({...medicalData, allergic: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none bg-white"><option value="">Seleccionar</option><option value="Si">Sí</option><option value="No">No</option></select></div>
-          </div>
-          {medicalData.allergic === 'Si' && (
-            <div><label className="block text-sm font-semibold mb-1 text-red-600">¿A cuáles medicamentos?</label><input type="text" value={medicalData.allergies_detail || ''} onChange={(e) => setMedicalData({...medicalData, allergies_detail: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-400 outline-none" placeholder="Ej: Penicilina, Ibuprofeno..." /></div>
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Ubicación</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">Estado</label>
+                    <select value={medicalData.state || ''} onChange={(e) => setMedicalData({...medicalData, state: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none bg-white">
+                      <option value="">Seleccione un estado</option>
+                      {VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                  <div><label className="block text-xs font-bold text-slate-600 mb-1.5">Dirección Detallada</label><input type="text" value={medicalData.address || ''} onChange={(e) => setMedicalData({...medicalData, address: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none" placeholder="Av, Calle, Casa..." /></div>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Antecedentes Médicos</h4>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div><label className="block text-[10px] font-bold text-slate-500 mb-1">¿Fuma?</label><select value={medicalData.smokes || ''} onChange={(e) => setMedicalData({...medicalData, smokes: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none bg-white"><option value="">Sel...</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                  <div><label className="block text-[10px] font-bold text-slate-500 mb-1">¿Asmático?</label><select value={medicalData.asthmatic || ''} onChange={(e) => setMedicalData({...medicalData, asthmatic: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none bg-white"><option value="">Sel...</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                  <div><label className="block text-[10px] font-bold text-slate-500 mb-1">¿Alergias?</label><select value={medicalData.allergic || ''} onChange={(e) => setMedicalData({...medicalData, allergic: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none bg-white"><option value="">Sel...</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                </div>
+                {medicalData.allergic === 'Si' && (
+                  <div className="mb-4"><label className="block text-xs font-bold text-red-500 mb-1">Especifique Alergias:</label><input type="text" value={medicalData.allergies_detail || ''} onChange={(e) => setMedicalData({...medicalData, allergies_detail: e.target.value})} className="w-full p-2.5 border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-400 outline-none bg-red-50/20" placeholder="Ej: Penicilina, Ibuprofeno..." /></div>
+                )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">Historia Médica / Cirugías Previas</label>
+                  <textarea value={medicalData.medical_history} onChange={(e) => setMedicalData({...medicalData, medical_history: e.target.value})} className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0056b3] outline-none resize-none leading-relaxed" rows="4" placeholder="Describa antecedentes importantes..."></textarea>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-[#0056b3] text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-900/10 active:scale-[0.99]">
+                Guardar Historia Clínica
+              </button>
+            </form>
           )}
 
-          <div>
-            <label className="block text-sm font-semibold mb-1">Antecedentes Médicos</label>
-            <textarea value={medicalData.medical_history} onChange={(e) => setMedicalData({...medicalData, medical_history: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#0056b3] outline-none resize-none" rows="3" placeholder="Alergias, cirugías previas, enfermedades crónicas..."></textarea>
-          </div>
+          {/* --- PESTAÑA 2: RÉCIPES Y ÓRDENES MÉDICAS (TU DISEÑO RESTAURADO) --- */}
+          {activeTab === 'recipes' && (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+              
+              {/* HISTORIAL (SI EXISTE) */}
+              {parseJSON(selectedPatient?.medical_recipes).length > 0 && (
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                  <h4 className="font-bold text-emerald-800 mb-3 text-sm uppercase flex items-center gap-2"><History size={16}/> Historial de Récipes</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
+                    {parseJSON(selectedPatient.medical_recipes).sort((a,b)=>new Date(b.date)-new Date(a.date)).map((rec, idx) => {
+                      const medCount = rec.medications ? rec.medications.length : 0;
+                      const exCount = rec.exams ? rec.exams.length : 0;
+                      return (
+                        <div key={rec.id || idx} className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm flex justify-between items-center hover:shadow-md transition">
+                          <div>
+                            <p className="font-bold text-emerald-700 text-sm flex items-center gap-2">
+                              {medCount > 0 && <span className="flex items-center gap-1"><Pill size={12}/> {medCount} Meds</span>}
+                              {exCount > 0 && <span className="flex items-center gap-1"> | <Activity size={12}/> {exCount} Exámenes</span>}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{new Date(rec.date).toLocaleDateString('es-VE', {day:'2-digit', month:'short', year:'numeric'})}</p>
+                          </div>
+                          <button onClick={() => { if(setRecipeToPrint) setRecipeToPrint({ patient: selectedPatient, data: rec }); if(setIsPrintOpen) setIsPrintOpen('recipe'); }} className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="Imprimir Récipe">
+                            <Printer size={18}/>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-          <div className="pt-2 mt-2"><button type="submit" className="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition shadow-sm">Confirmar e Iniciar Ficha</button></div>
-        </form>
+              <form onSubmit={onSaveRecipe} className="space-y-6 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-3 mb-2">
+                  <h4 className="font-black text-emerald-700 flex items-center gap-2"><Pill className="text-emerald-600"/> Crear Nuevo Récipe u Orden</h4>
+                </div>
+                
+                {/* SECCIÓN 1: MEDICAMENTOS (VERDE) */}
+                <div className="bg-white p-5 rounded-xl border-2 border-emerald-100 shadow-sm relative group hover:border-emerald-200 transition">
+                  <div className="absolute top-0 right-0 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-bl-xl text-xs font-bold uppercase tracking-wider">Récipes</div>
+                  <h5 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 text-sm"><div className="p-1.5 bg-emerald-100 rounded-lg"><Pill className="w-4 h-4"/></div> 1. Recetar Medicamentos</h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div className="md:col-span-4 relative">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Medicamento (Vademécum)</label>
+                      <input type="text" value={medSearch} onChange={e => {setMedSearch(e.target.value); setCurrentMed({...currentMed, name: e.target.value}); setShowMedDropdown(true);}} onFocus={() => setShowMedDropdown(true)} onBlur={() => setTimeout(() => setShowMedDropdown(false), 200)} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-medium" placeholder="Buscar..." />
+                      
+                      {showMedDropdown && (
+                        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto left-0 top-full">
+                          {GASTRO_VADEMECUM.filter(m => m.toLowerCase().includes(medSearch.toLowerCase())).map((m, i) => (
+                            <div key={i} onMouseDown={(e) => { e.preventDefault(); setCurrentMed({...currentMed, name: m}); setMedSearch(m); setShowMedDropdown(false); }} className="px-4 py-2 text-sm hover:bg-emerald-50 cursor-pointer border-b border-slate-50 text-slate-700">{m}</div>
+                          ))}
+                          {medSearch.trim() !== '' && !GASTRO_VADEMECUM.some(m => m.toLowerCase() === medSearch.toLowerCase()) && (
+                            <div onMouseDown={(e) => { e.preventDefault(); setCurrentMed({...currentMed, name: medSearch.trim()}); setShowMedDropdown(false); }} className="px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 cursor-pointer flex items-center gap-2"><Plus className="w-4 h-4"/> Añadir nuevo</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dosis</label><input type="text" value={currentMed.dosage} onChange={e => setCurrentMed({...currentMed, dosage: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ej: 1 tab" /></div>
+                    <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Frecuencia</label><input type="text" value={currentMed.frequency} onChange={e => setCurrentMed({...currentMed, frequency: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ej: 12h" /></div>
+                    <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Duración</label><input type="text" value={currentMed.duration} onChange={e => setCurrentMed({...currentMed, duration: e.target.value})} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ej: 5 días" /></div>
+                    <div className="md:col-span-1"><button type="button" onClick={handleAddMedication} className="w-full p-2.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition shadow-sm flex justify-center items-center"><Plus className="w-5 h-5"/></button></div>
+                  </div>
+
+                  {recipeForm.medications.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {recipeForm.medications.map((med, index) => (
+                        <div key={med.id} className="flex justify-between items-center bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100 hover:border-emerald-300 transition group">
+                          <div><span className="font-bold text-emerald-800 text-sm">{index + 1}. {med.name}</span><span className="text-emerald-600 text-xs ml-2 font-medium">{med.dosage} • {med.frequency} • {med.duration}</span></div>
+                          <button type="button" onClick={() => handleRemoveMedication(med.id)} className="text-emerald-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100"><X className="w-4 h-4"/></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECCIÓN 2: ÓRDENES Y EXÁMENES (INDIGO - RESTAURADO) */}
+                <div className="bg-white p-5 rounded-xl border-2 border-indigo-100 shadow-sm relative group hover:border-indigo-200 transition">
+                  <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-bl-xl text-xs font-bold uppercase tracking-wider">Laboratorio</div>
+                  <h5 className="font-bold text-indigo-800 mb-4 flex items-center gap-2 text-sm"><div className="p-1.5 bg-indigo-100 rounded-lg"><Activity className="w-4 h-4"/></div> 2. Ordenar Exámenes o Tratamientos</h5>
+                  
+                  <div className="flex gap-3 items-end">
+                    <div className="relative flex-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nombre del Examen / Procedimiento</label>
+                      <input type="text" value={examSearch} onChange={e => {setExamSearch(e.target.value); setShowExamDropdown(true);}} onFocus={() => setShowExamDropdown(true)} onBlur={() => setTimeout(() => setShowExamDropdown(false), 200)} className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium" placeholder="Buscar procedimiento..." />
+                      
+                      {showExamDropdown && (
+                        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto left-0 top-full">
+                          {COMMON_EXAMS.filter(m => m.toLowerCase().includes(examSearch.toLowerCase())).map((m, i) => (
+                            <div key={i} onMouseDown={(e) => { e.preventDefault(); setExamSearch(m); setShowExamDropdown(false); }} className="px-4 py-2 text-sm hover:bg-indigo-50 cursor-pointer border-b border-slate-50 text-slate-700">{m}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={handleAddExam} className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm flex items-center gap-2 text-sm"><Plus className="w-4 h-4"/> Agregar</button>
+                  </div>
+
+                  {(recipeForm.exams || []).length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {(recipeForm.exams || []).map((ex, index) => (
+                        <div key={ex.id} className="flex justify-between items-center bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100 hover:border-indigo-300 transition group">
+                          <span className="font-bold text-indigo-800 text-sm">{index + 1}. {ex.name}</span>
+                          <button type="button" onClick={() => handleRemoveExam(ex.id)} className="text-indigo-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100"><X className="w-4 h-4"/></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECCIÓN 3: INDICACIONES */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">3. Indicaciones Generales (Opcional)</label>
+                  <textarea value={recipeForm.indicaciones} onChange={e => setRecipeForm({...recipeForm, indicaciones: e.target.value})} rows="2" className="w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-400 resize-none" placeholder="Ej: Dieta blanda, reposo por 48h..."></textarea>
+                </div>
+
+                <div className="text-right">
+                  <button type="submit" disabled={isSavingRecipe} className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black hover:bg-emerald-700 shadow-lg transition flex items-center gap-2 ml-auto disabled:opacity-70">
+                    {isSavingRecipe ? <Loader2 className="animate-spin w-5 h-5"/> : <><CheckCircle2 size={18}/> Guardar Récipe y Órdenes</>}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -602,21 +857,42 @@ export function CreateAppointmentModal({ isOpen, onClose, leads, handleCreate })
     </div>
   );
 }
-export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm }) {
-  const [selectedBrand, setSelectedBrand] = useState('allurion');
+// Agrega esta constante al inicio del archivo o justo antes del componente Modal
+const BALLOON_BRANDS = [
+  { id: 'allurion', name: 'Allurion', duration: '4 Meses' },
+  { id: 'ovalsilhouette', name: 'OvalSilhouette', duration: '6 Meses' },
+  { id: 'spatz3', name: 'Spatz3', duration: '1 Año' }
+];
+
+export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm, balloonStock = [] }) {
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 1. Calcular opciones disponibles según el stock recibido
+  const availableOptions = BALLOON_BRANDS.map(brand => {
+    const stockItem = balloonStock.find(s => s.brand_id === brand.id);
+    const currentStock = stockItem?.current_stock ? parseInt(stockItem.current_stock) : 0;
+    return { ...brand, stock: currentStock };
+  }).filter(b => b.stock > 0); // Solo mostramos los que tienen stock positivo
+
+  // 2. Seleccionar automáticamente la primera opción disponible al abrir
+  if (isOpen && !selectedBrand && availableOptions.length > 0) {
+    setSelectedBrand(availableOptions[0].id);
+  }
 
   if (!isOpen || !patient) return null;
 
   const handleSubmit = async () => {
+    if (!selectedBrand) return;
     setSubmitting(true);
     await onConfirm(selectedBrand);
     setSubmitting(false);
+    setSelectedBrand(''); // Limpiar selección
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-in fade-in">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
         <div className="bg-amber-500 p-4 text-white flex justify-between items-center">
           <h3 className="font-bold flex items-center gap-2"><Package size={20}/> Asignar Balón</h3>
           <button onClick={onClose} className="hover:bg-amber-600 p-1 rounded"><X size={20}/></button>
@@ -633,24 +909,35 @@ export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm }) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Marca del Balón</label>
-            <select 
-              value={selectedBrand} 
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full p-3 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none"
-            >
-              <option value="allurion">Allurion (4 Meses)</option>
-              <option value="ovalsilhouette">OvalSilhouette (6 Meses)</option>
-              <option value="spatz3">Spatz3 (1 Año)</option>
-            </select>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+              Marca del Balón (Disponible)
+            </label>
+            
+            {availableOptions.length > 0 ? (
+              <select 
+                value={selectedBrand} 
+                onChange={(e) => setSelectedBrand(e.target.value)}
+                className="w-full p-3 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none bg-white"
+              >
+                {availableOptions.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.duration}) — Stock: {b.stock}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-bold text-center">
+                🚫 No hay balones en stock
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition">Cancelar</button>
             <button 
               onClick={handleSubmit} 
-              disabled={submitting}
-              className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 shadow-sm disabled:opacity-70 flex justify-center items-center gap-2"
+              disabled={submitting || availableOptions.length === 0}
+              className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
             >
               {submitting ? <Loader2 className="animate-spin w-4 h-4"/> : 'Confirmar'}
             </button>
