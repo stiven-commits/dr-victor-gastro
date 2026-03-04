@@ -3,7 +3,17 @@ const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'B
 
 export default function Filters({ searchTerm, setSearchTerm, filterStatus, setFilterStatus, filterTreatment, setFilterTreatment, dbTreatments = [], filterState, setFilterState }) {
 return (
-<div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+  <div className="relative md:col-span-1">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+    <input
+      type="text"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      placeholder="Buscar..."
+      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0056b3] bg-white"
+    />
+  </div>
   <div className="relative md:col-span-1">
     <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer">
       <option value="Todos">Estatus: Todos</option>

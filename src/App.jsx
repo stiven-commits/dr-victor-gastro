@@ -1,7 +1,7 @@
 ﻿import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 
-// --- 1. IMPORTACIONES DE LA WEB PÃšBLICA ---
+// --- 1. IMPORTACIONES DE LA WEB PÚBLICA ---
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import DoctorProfile from './components/DoctorProfile'
@@ -13,7 +13,7 @@ import Features from './components/Features'
 import Testimonials from './components/Testimonials'
 import ContactMap from './components/ContactMap'
 import Footer from './components/Footer'
-import ThankYou from './components/ThankYou' // Nuestra pÃ¡gina de gracias para el Pixel
+import ThankYou from './components/ThankYou' 
 import NotFound from './pages/NotFound'
 import SelfRegistration from './pages/SelfRegistration'
 
@@ -22,7 +22,7 @@ import Login from './admin/Login'
 import Dashboard from './admin/Dashboard'
 import RequireAuth from './admin/RequireAuth'
 
-// --- 3. COMPONENTE QUE AGRUPA TODA TU PÃGINA DE INICIO ---
+// --- 3. COMPONENTE QUE AGRUPA TODA TU PÁGINA DE INICIO ---
 const Home = () => (
   <main>
     <Hero />
@@ -38,6 +38,7 @@ const Home = () => (
     <ContactMap />
   </main>
 )
+
 // --- 4. COMPONENTE PRINCIPAL APP ---
 function App() {
   const location = useLocation()
@@ -45,10 +46,19 @@ function App() {
   // Detectamos si la URL contiene "login" o "dashboard"
   const isAdminRoute = location.pathname.includes('/login') || location.pathname.includes('/dashboard')
 
-  // Escudo protector: Ocultar instalaciÃ³n PWA en la web pÃºblica
+  // NUEVO: Efecto para cambiar el título de la pestaña dinámicamente
+  useEffect(() => {
+    if (isAdminRoute) {
+      document.title = 'CRM Dr. Víctor | Panel Administrativo';
+    } else {
+      document.title = 'Dr. Víctor Manrique | Gastroenterólogo - Internista';
+    }
+  }, [location, isAdminRoute]);
+
+  // Escudo protector: Ocultar instalación PWA en la web pública
   useEffect(() => {
     const handleInstallPrompt = (e) => {
-      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalaciÃ³n
+      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalación
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/dashboard')) {
         e.preventDefault();
       }
@@ -61,11 +71,11 @@ function App() {
   return (
     <div className="min-h-screen bg-white font-sans">
       
-      {/* Si NO estamos en el CRM, mostramos el menÃº pÃºblico */}
+      {/* Si NO estamos en el CRM, mostramos el menú público */}
       {!isAdminRoute && <Navbar />}
 
       <Routes>
-        {/* Rutas PÃºblicas */}
+        {/* Rutas Públicas */}
         <Route path="/" element={<Home />} />
         <Route path="/registro" element={<SelfRegistration />} />
         <Route path="/gracias" element={<ThankYou />} />
@@ -80,7 +90,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Si NO estamos en el CRM, mostramos el footer pÃºblico */}
+      {/* Si NO estamos en el CRM, mostramos el footer público */}
       {!isAdminRoute && <Footer />}
       
     </div>
@@ -88,4 +98,3 @@ function App() {
 }
 
 export default App
-
