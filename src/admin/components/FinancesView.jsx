@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, CreditCard, Loader2, ChevronLeft, ChevronRight, Calendar, Printer, RotateCcw } from 'lucide-react';
+import { Search, CreditCard, Loader2, ChevronLeft, ChevronRight, Calendar, Printer, RotateCcw, Clock } from 'lucide-react';
 import FinancesPrint from './FinancesPrint';
 import { PaymentModal, AdjustModal, DetailsModal, ReverseModal } from './FinanceModals';
 import logoDr from '../../assets/logo-dr-victor-horizontal-2.png';
@@ -53,6 +53,14 @@ const getLocalDateStr = (isoString) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// Helper para formato de fecha en inputs
+const getFormattedDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function FinancesView() {
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
@@ -62,14 +70,38 @@ export default function FinancesView() {
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [filterState, setFilterState] = useState('Todos');
 
+  // --- LÓGICA DE FECHAS PERSISTENTES ---
   const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+  const firstDayDefault = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const lastDayDefault = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
 
-  const [startDate, setStartDate] = useState(firstDay);
-  const [endDate, setEndDate] = useState(lastDay);
+  // Leemos del localStorage o usamos el default
+  const [startDate, setStartDate] = useState(() => localStorage.getItem('finance_startDate') || firstDayDefault);
+  const [endDate, setEndDate] = useState(() => localStorage.getItem('finance_endDate') || lastDayDefault);
+
+  // Guardamos en localStorage cada vez que cambian
+  useEffect(() => {
+    localStorage.setItem('finance_startDate', startDate);
+    localStorage.setItem('finance_endDate', endDate);
+  }, [startDate, endDate]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 9;
+
+  // --- FUNCIONES DE BOTONES RÁPIDOS ---
+  const setToday = () => {
+    const t = getFormattedDate(new Date());
+    setStartDate(t);
+    setEndDate(t);
+  };
+
+  const setYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const y = getFormattedDate(d);
+    setStartDate(y);
+    setEndDate(y);
+  };
 
   // Modals States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -124,7 +156,6 @@ export default function FinancesView() {
 
   const handleClosePaymentModal = () => { setIsModalOpen(false); setSelectedRecord(null); };
 
-  // --- CORRECCIÓN CRÍTICA DEL BOTÓN PAGAR ---
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     if (!selectedRecord) return;
@@ -304,12 +335,29 @@ export default function FinancesView() {
   return (
     <div className="w-full">
       <div className="p-4 md:p-6 no-print">
-        {/* Filtros */}
+        {/* Filtros CON BOTONES RÁPIDOS */}
         <div className="flex flex-col md:flex-row gap-4 items-end mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 text-[#0056b3] font-bold"><Calendar className="w-5 h-5"/> Rango de Fechas:</div>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" />
-          <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-sm text-slate-500 hover:text-[#0056b3] font-medium px-2 py-2">Quitar filtro</button>
+          <div className="flex flex-col gap-1 w-full md:w-auto">
+            <div className="flex items-center gap-2 text-[#0056b3] font-bold text-sm">
+              <Calendar className="w-4 h-4"/> Rango de Fechas:
+            </div>
+            <div className="flex gap-2">
+              <button onClick={setToday} className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition border border-blue-100 flex items-center gap-1">
+                <Clock className="w-3 h-3"/> Hoy
+              </button>
+              <button onClick={setYesterday} className="px-3 py-1.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-100 transition border border-slate-200">
+                Ayer
+              </button>
+            </div>
+          </div>
+          
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="p-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0056b3] w-full md:w-auto" />
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="p-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0056b3] w-full md:w-auto" />
+          
+          <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-sm text-slate-400 hover:text-red-500 font-medium px-2 py-2 transition">
+            <RotateCcw className="w-4 h-4" />
+          </button>
+          
           <button onClick={() => window.print()} className="ml-auto bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-900 transition shadow-sm flex items-center gap-2 text-sm whitespace-nowrap">
             <Printer className="w-4 h-4" /> Imprimir Resumen
           </button>
@@ -341,7 +389,6 @@ export default function FinancesView() {
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingreso del Periodo</h3>
               <p className="text-3xl font-bold text-green-400">${totalPeriodIncome.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
-            {/* AQUÍ ESTÁ EL BLOQUE RESTAURADO */}
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Cuentas por Cobrar (Global)</h3>
               <p className="text-xl font-medium text-rose-300">${totalPendingBalance.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -417,6 +464,7 @@ export default function FinancesView() {
         )}
       </div>
 
+      {/* MODALES: PROPS RESTAURADAS CORRECTAMENTE */}
       <PaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} record={selectedRecord} form={paymentForm} setForm={setPaymentForm} onSubmit={handlePaymentSubmit} submitting={submittingPayment} formatInput={formatNumberInput} />
       <AdjustModal isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} record={selectedRecord} form={adjustForm} setForm={setAdjustForm} onSubmit={handleAdjustSubmit} submitting={submittingAdjust} formatInput={formatNumberInput} />
       <DetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} record={detailsRecord} />

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, CreditCard, Loader2, RotateCcw } from 'lucide-react'; // Importamos icono para reverso
+import React, { useEffect } from 'react';
+import { X, CreditCard, Loader2, RotateCcw } from 'lucide-react';
 
 const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const getPatientName = (row) => row?.patient_name || row?.name || 'N/A';
@@ -10,18 +10,79 @@ const formatNumberInput = (val) => {
   let parts = cleaned.split(',');
   let intPart = parts[0];
   let decPart = parts.length > 1 ? parts[1].substring(0, 2) : null;
+  
   if (intPart.length > 1 && intPart.startsWith('0')) {
     intPart = parseInt(intPart, 10).toString();
     if (intPart === 'NaN') intPart = '0';
   }
+  
   intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return parts.length > 1 ? `${intPart},${decPart}` : intPart;
+};
+
+const parseLocaleNumber = (val) => {
+  if (!val) return NaN;
+  return parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
 };
 
 export function PaymentModal({ isOpen, onClose, record, form, setForm, onSubmit, submitting }) {
   if (!isOpen || !record) return null;
   const balance = parseFloat(record.balance || 0);
   const showBsFields = form.payment_method === 'Pago Móvil' || form.payment_method === 'Transferencia (Bs)' || form.payment_method === 'Punto de Venta';
+
+  // Lógica de cálculo inverso (Bs -> USD)
+  const handleBsChange = (newBs) => {
+    const bsValue = parseLocaleNumber(newBs);
+    const rateValue = parseLocaleNumber(form.exchange_rate_bcv);
+    
+    let newUsd = form.amount_usd;
+    
+    // Si tenemos Bs y Tasa, calculamos USD
+    if (!Number.isNaN(bsValue) && !Number.isNaN(rateValue) && rateValue > 0) {
+      const calculatedUsd = bsValue / rateValue;
+      newUsd = calculatedUsd.toFixed(2).replace('.', ',');
+    }
+
+    setForm({ ...form, amount_bs: newBs, amount_usd: formatNumberInput(newUsd) });
+  };
+
+  const handleRateChange = (newRate) => {
+    // Si cambiamos la tasa, recalculamos según qué campo tenga el foco o prioridad.
+    // Asumiremos prioridad: Si hay Bs escrito, recalculamos USD. Si no, recalculamos Bs desde USD.
+    const rateValue = parseLocaleNumber(newRate);
+    const bsValue = parseLocaleNumber(form.amount_bs);
+    const usdValue = parseLocaleNumber(form.amount_usd);
+
+    let updates = { exchange_rate_bcv: newRate };
+
+    if (!Number.isNaN(rateValue) && rateValue > 0) {
+      if (!Number.isNaN(bsValue) && bsValue > 0) {
+        // Prioridad Bs -> Recalcular USD
+        const calculatedUsd = bsValue / rateValue;
+        updates.amount_usd = formatNumberInput(calculatedUsd.toFixed(2).replace('.', ','));
+      } else if (!Number.isNaN(usdValue) && usdValue > 0) {
+        // Prioridad USD -> Recalcular Bs
+        const calculatedBs = usdValue * rateValue;
+        updates.amount_bs = formatNumberInput(calculatedBs.toFixed(2).replace('.', ','));
+      }
+    }
+    
+    setForm({ ...form, ...updates });
+  };
+
+  const handleUsdChange = (newUsd) => {
+    const usdValue = parseLocaleNumber(newUsd);
+    const rateValue = parseLocaleNumber(form.exchange_rate_bcv);
+    
+    let newBs = form.amount_bs;
+
+    if (!Number.isNaN(usdValue) && !Number.isNaN(rateValue) && rateValue > 0) {
+      const calculatedBs = usdValue * rateValue;
+      newBs = formatNumberInput(calculatedBs.toFixed(2).replace('.', ','));
+    }
+
+    setForm({ ...form, amount_usd: newUsd, amount_bs: newBs });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
@@ -35,13 +96,10 @@ export function PaymentModal({ isOpen, onClose, record, form, setForm, onSubmit,
             <p className="text-sm text-slate-600">Paciente: <span className="font-bold text-slate-800">{getPatientName(record)}</span></p>
             <p className="text-sm text-slate-600 mt-1">Deuda Actual: <span className="font-bold text-rose-700">{formatUsd(balance)}</span></p>
           </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-slate-700">Monto a Pagar USD</label>
-            <input type="text" required value={form.amount_usd} onChange={(e) => setForm({ ...form, amount_usd: formatNumberInput(e.target.value) })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Ej: 1.500,50" />
-          </div>
+          
           <div>
             <label className="block text-sm font-semibold mb-1 text-slate-700">Método de Pago</label>
-            <select required value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white">
+            <select required value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value, amount_bs: '', exchange_rate_bcv: '' })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white">
               <option value="Zelle">Zelle</option>
               <option value="Efectivo USD">Efectivo USD</option>
               <option value="Pago Móvil">Pago Móvil</option>
@@ -50,22 +108,70 @@ export function PaymentModal({ isOpen, onClose, record, form, setForm, onSubmit,
               <option value="Punto de Venta">Punto de Venta</option>
             </select>
           </div>
+
+          {/* Si es en Bs, mostramos primero Bs y Tasa */}
+          {showBsFields ? (
+            <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monto en Bolívares</label>
+                  <input 
+                    type="text" 
+                    value={form.amount_bs} 
+                    onChange={(e) => handleBsChange(formatNumberInput(e.target.value))} 
+                    className="w-full p-2.5 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] font-bold text-slate-800" 
+                    placeholder="Ej: 1.500,00" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tasa de Cambio</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={form.exchange_rate_bcv} 
+                    onChange={(e) => handleRateChange(formatNumberInput(e.target.value))} 
+                    className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" 
+                    placeholder="Ej: 60,50" 
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Equivalente en USD (Automático)</label>
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={form.amount_usd} 
+                  className="w-full p-2.5 border border-gray-200 rounded-lg bg-white text-green-700 font-mono font-bold" 
+                />
+              </div>
+            </div>
+          ) : (
+            // Si es USD directo (Zelle, Efectivo, Binance)
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">Monto a Pagar USD</label>
+              <input 
+                type="text" 
+                required 
+                value={form.amount_usd} 
+                onChange={(e) => setForm({ ...form, amount_usd: formatNumberInput(e.target.value) })} 
+                className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" 
+                placeholder="Ej: 100,00" 
+              />
+            </div>
+          )}
+
           {form.payment_method !== 'Efectivo USD' && (
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-700">Referencia</label>
+              <label className="block text-sm font-semibold mb-1 text-slate-700">Referencia / Comprobante</label>
               <input type="text" required value={form.reference_number} onChange={(e) => setForm({ ...form, reference_number: e.target.value })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" />
             </div>
           )}
-          {showBsFields && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-semibold mb-1 text-slate-700">Tasa BCV</label><input type="text" required value={form.exchange_rate_bcv} onChange={(e) => setForm({ ...form, exchange_rate_bcv: formatNumberInput(e.target.value) })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Ej: 36,50" /></div>
-              <div><label className="block text-sm font-semibold mb-1 text-slate-700">Monto Bs</label><input type="text" value={form.amount_bs} readOnly className="w-full p-2.5 border border-gray-200 rounded-lg bg-slate-50 text-slate-700 font-mono font-bold" placeholder="0,00" /></div>
-            </div>
-          )}
+
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <button type="button" onClick={onClose} className="px-5 py-2.5 font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition" disabled={submitting}>Cancelar</button>
             <button type="submit" className="px-6 py-2.5 bg-[#0056b3] text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition inline-flex items-center gap-2 disabled:opacity-70" disabled={submitting}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {submitting ? 'Confirmando...' : 'Confirmar Pago'}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {submitting ? 'Guardando...' : 'Registrar Pago'}
             </button>
           </div>
         </form>
@@ -155,10 +261,9 @@ export function DetailsModal({ isOpen, onClose, record }) {
     </div>
   );  
 }
+
 export function ReverseModal({ isOpen, onClose, record, form, setForm, onSubmit, submitting, formatInput }) {
   if (!isOpen || !record) return null;
-  
-  // Calculamos cuánto se puede reversar como máximo (lo que ha pagado)
   const paidAmount = parseFloat(record.amount_paid || 0);
 
   return (

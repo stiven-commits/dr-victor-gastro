@@ -4,7 +4,6 @@ import { Loader2, Plus, ChevronLeft, ChevronRight, Menu, Package } from 'lucide-
 
 // Importar Componentes Modulares
 import Sidebar from './components/Sidebar';
-import AgendaView from './components/AgendaView';
 import FinancesView from './components/FinancesView';
 import ReportsView from './components/ReportsView';
 import MetricsCards from './components/MetricsCards';
@@ -26,7 +25,7 @@ export default function Dashboard() {
   // --- ESTADOS PARA INVENTARIO ---
   const [balloonModalOpen, setBalloonModalOpen] = useState(false);
   const [activeBalloonLead, setActiveBalloonLead] = useState(null);
-  const [balloonStock, setBalloonStock] = useState([]); // <--- NUEVO ESTADO
+  const [balloonStock, setBalloonStock] = useState([]); 
 
   // Función para obtener stock actualizado
   const fetchBalloonStock = async () => {
@@ -48,17 +47,14 @@ export default function Dashboard() {
   };
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('crmActiveTab');
-    if (savedTab === 'agenda') return 'leads';
-    return savedTab || 'leads';
+    return savedTab === 'agenda' ? 'leads' : (savedTab || 'leads'); // Redirigir si estaba en agenda
   });
 
-  // ESTOS SON LOS ESTADOS QUE FALTABAN:
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [dbTreatments, setDbTreatments] = useState([]); 
   const [finances, setFinances] = useState([]);
 
-  // ... (aquí continúan los demás estados como currentPage, addModalOpen, etc.)
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -101,7 +97,7 @@ export default function Dashboard() {
   const N8N_POST_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
   const N8N_AUDIT_URL = 'https://victorbot.sosmarketing.agency/webhook/api-audit-logs'; 
   const N8N_CREATE_URL = 'https://victorbot.sosmarketing.agency/webhook/create-lead';
-  const N8N_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments'; // <-- NUEVA RUTA
+  const N8N_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments';
   const N8N_FINANCES_URL = 'https://victorbot.sosmarketing.agency/webhook/api-finances';
   const N8N_ADD_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-add-finance-treatment';
   const N8N_DEL_FINANCE_URL = 'https://victorbot.sosmarketing.agency/webhook/api-delete-finance-treatment';
@@ -111,7 +107,7 @@ export default function Dashboard() {
   // Efectos (Carga de datos)
   useEffect(() => { 
     fetchLeads(); 
-    fetchTreatments(); // <-- LLAMAMOS A LA NUEVA FUNCIÓN AL INICIAR
+    fetchTreatments();
     fetchFinances();
   }, []);
   useEffect(() => {
@@ -124,7 +120,6 @@ export default function Dashboard() {
     let title = 'CRM Dr. Víctor';
     if (activeTab === 'leads') title = 'CRM Dr. Víctor - Leads';
     if (activeTab === 'patients') title = 'CRM Dr. Víctor - Pacientes';
-    if (activeTab === 'agenda') title = 'CRM Dr. Víctor - Agenda';
     if (activeTab === 'finances') title = 'CRM Dr. Víctor - Finanzas';
     if (activeTab === 'informes') title = 'CRM Dr. Víctor - Informes Médicos';
     if (activeTab === 'audit') title = 'CRM Dr. Víctor - Auditoría';
@@ -151,8 +146,6 @@ export default function Dashboard() {
       });
       
       const data = await response.json();
-      
-      // Normalización garantizada
       let finalData = [];
       if (Array.isArray(data)) {
         finalData = Array.isArray(data[0]) ? data[0] : data;
