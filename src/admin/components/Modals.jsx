@@ -540,15 +540,12 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
   };
 
   const selectedTreatments = Array.isArray(newManualData.treatments) ? newManualData.treatments : [];
-  // Validar dbTreatments
   const safeDbTreatments = Array.isArray(dbTreatments) ? dbTreatments : [];
 
   const filteredTreatments = safeDbTreatments.filter((option) => {
-  const optionName = option?.name || '';
-  return optionName.toLowerCase().includes((searchTerm || '').toLowerCase()) && !selectedTreatments.includes(optionName);
+    const optionName = option?.name || '';
+    return optionName.toLowerCase().includes((searchTerm || '').toLowerCase()) && !selectedTreatments.includes(optionName);
   });
-
-  console.log('Datos de Tratamientos Recibidos:', dbTreatments);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-10">
@@ -575,7 +572,6 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
             <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={newManualData.edad} onChange={(e) => setNewManualData({ ...newManualData, edad: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Años" min="1" max="120" /></div>
           </div>
 
-          {/* NUEVO: CAJA PARA REPRESENTANTE LEGAL (Aparece dinámicamente) */}
           {parseInt(newManualData.edad) < 18 && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
               <h4 className="text-amber-800 font-bold text-xs uppercase flex items-center gap-2">⚠️ Datos del Representante Legal</h4>
@@ -592,7 +588,6 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
             </div>
           )}
 
-          {/* TODO: Implementar validación de permisos de Rol (Lectura/Escritura) */}
           <div>
             <label className="block text-sm font-semibold mb-2">Tratamientos de Interés</label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -614,9 +609,6 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
                   ))}
                 </ul>
               )}
-              {isDropdownOpen && filteredTreatments.length === 0 && searchTerm !== '' && (
-                <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-500 top-full">No se encontraron tratamientos</div>
-              )}
             </div>
           </div>
 
@@ -631,8 +623,8 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
                     <option value="Femenino">Femenino</option>
                   </select>
                 </div>
-                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" required={newManualData.is_patient} value={newManualData.weight} onChange={(e) => setNewManualData({ ...newManualData, weight: e.target.value })} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" placeholder="Ej: 85.5" /></div>
-                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" required={newManualData.is_patient} value={newManualData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Peso Inicial (kg)</label><input type="number" step="0.01" value={newManualData.weight} onChange={(e) => setNewManualData({ ...newManualData, weight: e.target.value })} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400" placeholder="Ej: 85.5" /></div>
+                <div><label className="block text-sm font-semibold mb-1 text-purple-700">Estatura (m)</label><input type="text" value={newManualData.height} onChange={handleHeight} className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 font-mono" placeholder="Ej: 1.75" maxLength={4} /></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
