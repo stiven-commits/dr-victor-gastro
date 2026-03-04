@@ -33,12 +33,34 @@ export default function UsersView() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${GET_USERS_URL}?t=${Date.now()}`, { headers: { 'Authorization': API_KEY } });
-      const data = await res.json();
-      const userList = Array.isArray(data) ? (Array.isArray(data[0]) ? data[0] : data) : [];
+      const res = await fetch(`${GET_USERS_URL}?t=${Date.now()}`, { 
+        headers: { 'Authorization': API_KEY } 
+      });
+      
+      const text = await res.text();
+      
+      if (!text) {
+        setUsers([]);
+        return;
+      }
+      
+      const data = JSON.parse(text);
+      
+      // Lógica robusta para extraer los datos sin importar cómo los envuelva n8n
+      let userList = [];
+      if (Array.isArray(data)) {
+        userList = Array.isArray(data[0]) ? data[0] : data;
+      } else if (data && typeof data === 'object') {
+        userList = data.data || data.rows || (data.id ? [data] : []);
+      }
+      
+      // Imprimir en consola para verificar qué llegó exactamente
+      console.log("Usuarios detectados por React:", userList);
+      
       setUsers(userList);
     } catch (error) {
-      console.error("Error cargando usuarios", error);
+      console.error("Error cargando usuarios:", error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

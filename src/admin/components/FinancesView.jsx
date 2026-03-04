@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Search, CreditCard, Loader2, ChevronLeft, ChevronRight, Calendar, Printer, RotateCcw, Clock } from 'lucide-react';
 import FinancesPrint from './FinancesPrint';
 import { PaymentModal, AdjustModal, DetailsModal, ReverseModal } from './FinanceModals';
@@ -106,6 +106,7 @@ export default function FinancesView() {
   // Modals States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecords, setSelectedRecords] = useState([]);
   const [paymentForm, setPaymentForm] = useState({ amount_usd: '', payment_method: 'Zelle', reference_number: '', exchange_rate_bcv: '', amount_bs: '' });
   const [submittingPayment, setSubmittingPayment] = useState(false);
   
@@ -156,50 +157,104 @@ export default function FinancesView() {
 
   const handleClosePaymentModal = () => { setIsModalOpen(false); setSelectedRecord(null); };
 
+  const handleToggleRecordSelection = (record, checked) => {
+    const id = getLeadTreatmentId(record);
+    if (!id) return;
+
+    if (!checked) {
+      setSelectedRecords((prev) => prev.filter((r) => getLeadTreatmentId(r) !== id));
+      return;
+    }
+
+    if (selectedRecords.length > 0) {
+      const baseCedula = getCedula(selectedRecords[0]);
+      const currentCedula = getCedula(record);
+      if (String(baseCedula) !== String(currentCedula)) {
+        alert('Solo puedes seleccionar procedimientos del mismo paciente para pago grupal.');
+        return;
+      }
+    }
+
+    setSelectedRecords((prev) => {
+      if (prev.some((r) => getLeadTreatmentId(r) === id)) return prev;
+      return [...prev, record];
+    });
+  };
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedRecord) return;
+    if (!selectedRecord && selectedRecords.length === 0) return;
     const parsedUsd = parseLocaleNumber(paymentForm.amount_usd);
     if (Number.isNaN(parsedUsd) || parsedUsd <= 0) return alert('Monto inválido');
-    
+
     setSubmittingPayment(true);
-    
+
     try {
-      // 1. Obtener usuario de forma segura
       const regBy = currentUser?.name || currentUser?.username || 'Sistema';
-      
-      // 2. Obtener ID de tratamiento de forma segura
-      const tId = getLeadTreatmentId(selectedRecord);
-      
-      // 3. Construir Payload BLINDADO (Evita undefined a toda costa)
-      const payload = {
-        lead_treatment_id: tId || null, 
-        amount_usd: parsedUsd,
+      const commonPayload = {
         payment_method: paymentForm.payment_method || 'Zelle',
-        // Si es efectivo, enviamos cadena vacía. Si es otro, la referencia. Si es undefined, cadena vacía.
         reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')),
         exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseLocaleNumber(paymentForm.exchange_rate_bcv) : null,
-        amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
         registered_by: regBy
       };
-      
-      console.log("Enviando pago (Payload):", payload); // Para depuración
 
-      const response = await fetch(POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) throw new Error('Error en respuesta del servidor');
+      if (selectedRecords.length > 1) {
+        let remaining = parsedUsd;
+        const totalBs = paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null;
+        const targets = [...selectedRecords];
+
+        for (const rec of targets) {
+          if (remaining <= 0) break;
+          const balance = parseFloat(rec.balance || 0);
+          if (Number.isNaN(balance) || balance <= 0) continue;
+
+          const allocated = Math.min(remaining, balance);
+          if (allocated <= 0) continue;
+
+          const payload = {
+            lead_treatment_id: getLeadTreatmentId(rec) || null,
+            amount_usd: allocated,
+            amount_bs: totalBs && parsedUsd > 0 ? (totalBs * (allocated / parsedUsd)) : null,
+            ...commonPayload
+          };
+
+          const response = await fetch(POST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error('Error en respuesta del servidor');
+
+          remaining -= allocated;
+        }
+
+        if (remaining > 0.01) {
+          alert(`Quedó un excedente de ${formatUsd(remaining)} sin aplicar por falta de deuda.`);
+        }
+      } else {
+        const target = selectedRecords.length === 1 ? selectedRecords[0] : selectedRecord;
+        const payload = {
+          lead_treatment_id: getLeadTreatmentId(target) || null,
+          amount_usd: parsedUsd,
+          amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
+          ...commonPayload
+        };
+
+        const response = await fetch(POST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error('Error en respuesta del servidor');
+      }
 
       setIsModalOpen(false);
-      fetchFinances(); // Recargar datos
-    } catch (error) { 
-      console.error('Error al procesar pago:', error); 
+      setSelectedRecords([]);
+      fetchFinances();
+    } catch (error) {
+      console.error('Error al procesar pago:', error);
       alert('Hubo un error al registrar el pago. Verifique los datos.');
-    } finally { 
-      setSubmittingPayment(false); 
+    } finally {
+      setSubmittingPayment(false);
     }
   };
 
@@ -410,22 +465,44 @@ export default function FinancesView() {
 
           <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="w-full py-2.5 px-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0056b3] bg-white cursor-pointer"><option value="Todos">Locación: Todas</option>{VZLA_STATES.map(st => <option key={st} value={st}>{st}</option>)}</select>
         </div>
+        {selectedRecords.length > 1 && (
+          <div className="mb-4 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => handleOpenPaymentModal(selectedRecords[0])}
+              className="bg-[#0056b3] text-white px-4 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm"
+            >
+              Registrar Pago Grupal
+            </button>
+          </div>
+        )}
 
         <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
           {loading ? <div className="text-center py-20 text-slate-500">Cargando finanzas...</div> : (
             <table className="w-full min-w-[980px] text-sm text-left">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
+                  <th className="px-4 py-3 font-semibold text-center">Sel.</th>
                   <th className="px-4 py-3 font-semibold">Paciente</th><th className="px-4 py-3 font-semibold">Tratamiento</th><th className="px-4 py-3 font-semibold">Precio Acordado</th><th className="px-4 py-3 font-semibold">Ajustes</th><th className="px-4 py-3 font-semibold">Pagado</th><th className="px-4 py-3 font-semibold">Saldo Pendiente</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {paginatedFinances.length === 0 ? <tr><td colSpan="8" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
+                {paginatedFinances.length === 0 ? <tr><td colSpan="9" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
                   const status = getStatus(item);
                   const balance = parseFloat(item.balance || 0);
                   const adjustment = parseFloat(item.agreed_price || 0) - parseFloat(item.base_price || item.agreed_price || 0);
+                  const selected = selectedRecords.some((r) => getLeadTreatmentId(r) === getLeadTreatmentId(item));
                   return (
                     <tr key={getLeadTreatmentId(item) || idx} className="hover:bg-slate-50/70">
+                      <td className="px-4 py-3 align-top text-center">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={balance <= 0}
+                          onChange={(e) => handleToggleRecordSelection(item, e.target.checked)}
+                          className="w-4 h-4 accent-[#0056b3] cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3 align-top"><div className="font-semibold text-slate-800">{item.patient_name}</div><div className="text-xs text-slate-500 mt-0.5 font-mono">CI: {item.cedula || 'N/A'}</div></td>
                       <td className="px-4 py-3 align-top text-slate-700">{item.treatment_name}</td>
                       <td className="px-4 py-3 align-top font-semibold text-slate-800">$<span className="font-mono">{parseFloat(item.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
@@ -435,16 +512,16 @@ export default function FinancesView() {
                       <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{status}</span></td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          {status !== 'Pagado' && status !== 'Reverso' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">⚙️ Ajuste</button>}
+                          {status !== 'Pagado' && status !== 'Reverso' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">Ajuste</button>}
                           
                           {parseFloat(item.amount_paid || 0) > 0 && (
                             <>
-                              <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">📋 Detalles</button>
-                              <button onClick={() => handleOpenReverseModal(item)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1" title="Reversar Pago">↩️</button>
+                              <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">Detalles</button>
+                              <button onClick={() => handleOpenReverseModal(item)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1" title="Reversar Pago">Reversar</button>
                             </>
                           )}
                           
-                          {balance > 0 && <button onClick={() => handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) })} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">💵 Pagar</button>}
+                          {balance > 0 && <button onClick={() => { setSelectedRecords([]); handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) }); }} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Pagar</button>}
                         </div>
                       </td>
                     </tr>
@@ -465,7 +542,7 @@ export default function FinancesView() {
       </div>
 
       {/* MODALES: PROPS RESTAURADAS CORRECTAMENTE */}
-      <PaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} record={selectedRecord} form={paymentForm} setForm={setPaymentForm} onSubmit={handlePaymentSubmit} submitting={submittingPayment} formatInput={formatNumberInput} />
+      <PaymentModal isOpen={isModalOpen} onClose={handleClosePaymentModal} record={selectedRecord} records={selectedRecords} form={paymentForm} setForm={setPaymentForm} onSubmit={handlePaymentSubmit} submitting={submittingPayment} formatInput={formatNumberInput} />
       <AdjustModal isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} record={selectedRecord} form={adjustForm} setForm={setAdjustForm} onSubmit={handleAdjustSubmit} submitting={submittingAdjust} formatInput={formatNumberInput} />
       <DetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} record={detailsRecord} />
       <ReverseModal isOpen={isReverseModalOpen} onClose={() => setIsReverseModalOpen(false)} record={selectedRecord} form={reverseForm} setForm={setReverseForm} onSubmit={handleReverseSubmit} submitting={submittingReverse} formatInput={formatNumberInput} />
@@ -474,3 +551,7 @@ export default function FinancesView() {
     </div>
   );
 }
+
+
+
+

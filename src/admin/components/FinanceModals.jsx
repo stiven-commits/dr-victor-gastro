@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { X, CreditCard, Loader2, RotateCcw } from 'lucide-react';
 
 const formatUsd = (value) => `$${Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -25,9 +25,12 @@ const parseLocaleNumber = (val) => {
   return parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
 };
 
-export function PaymentModal({ isOpen, onClose, record, form, setForm, onSubmit, submitting }) {
-  if (!isOpen || !record) return null;
-  const balance = parseFloat(record.balance || 0);
+export function PaymentModal({ isOpen, onClose, record, records = [], form, setForm, onSubmit, submitting }) {
+  const activeRecords = records.length > 0 ? records : (record ? [record] : []);
+  if (!isOpen || activeRecords.length === 0) return null;
+  const baseRecord = activeRecords[0];
+  const balance = activeRecords.reduce((acc, r) => acc + parseFloat(r.balance || 0), 0);
+  const isGroupPayment = activeRecords.length > 1;
   const showBsFields = form.payment_method === 'Pago Móvil' || form.payment_method === 'Transferencia (Bs)' || form.payment_method === 'Punto de Venta';
 
   // Lógica de cálculo inverso (Bs -> USD)
@@ -88,13 +91,23 @@ export function PaymentModal({ isOpen, onClose, record, form, setForm, onSubmit,
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-8">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="flex items-center justify-between p-4 bg-[#0056b3] text-white">
-          <h3 className="font-bold text-lg">Registrar Pago</h3>
+          <h3 className="font-bold text-lg">{isGroupPayment ? 'Registrar Pago Grupal' : 'Registrar Pago'}</h3>
           <button type="button" onClick={onClose} className="hover:text-blue-100 transition"><X size={20} /></button>
         </div>
         <form onSubmit={onSubmit} className="p-5 space-y-4">
           <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-            <p className="text-sm text-slate-600">Paciente: <span className="font-bold text-slate-800">{getPatientName(record)}</span></p>
-            <p className="text-sm text-slate-600 mt-1">Deuda Actual: <span className="font-bold text-rose-700">{formatUsd(balance)}</span></p>
+            <p className="text-sm text-slate-600">Paciente: <span className="font-bold text-slate-800">{getPatientName(baseRecord)}</span></p>
+            <p className="text-sm text-slate-600 mt-1">{isGroupPayment ? 'Deuda Total Seleccionada' : 'Deuda Actual'}: <span className="font-bold text-rose-700">{formatUsd(balance)}</span></p>
+            {isGroupPayment && (
+              <div className="mt-2 pt-2 border-t border-slate-200">
+                <p className="text-xs text-slate-500 font-semibold mb-1">Tratamientos seleccionados:</p>
+                <ul className="text-xs text-slate-700 list-disc pl-4 space-y-0.5">
+                  {activeRecords.map((r) => (
+                    <li key={r.lead_treatment_id || r.id}>{r.treatment_name || 'Tratamiento'}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           
           <div>
@@ -197,8 +210,8 @@ export function AdjustModal({ isOpen, onClose, record, form, setForm, onSubmit, 
           <div>
             <label className="block text-sm font-semibold mb-1 text-slate-700">Tipo de Ajuste</label>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3] bg-white font-semibold">
-              <option value="discount">📉 Aplicar Descuento (-)</option>
-              <option value="extra">📈 Cargo Extra / Recargo (+)</option>
+              <option value="discount">Aplicar Descuento (-)</option>
+              <option value="extra">Cargo Extra / Recargo (+)</option>
             </select>
           </div>
           <div>
@@ -316,3 +329,5 @@ export function ReverseModal({ isOpen, onClose, record, form, setForm, onSubmit,
     </div>
   );
 }
+
+

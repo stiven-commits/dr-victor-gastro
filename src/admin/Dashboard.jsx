@@ -6,6 +6,7 @@ import { Loader2, Plus, ChevronLeft, ChevronRight, Menu, Package } from 'lucide-
 import Sidebar from './components/Sidebar';
 import FinancesView from './components/FinancesView';
 import ReportsView from './components/ReportsView';
+import UsersView from './components/UsersView';
 import MetricsCards from './components/MetricsCards';
 import Filters from './components/Filters';
 import BalloonInventoryView from './components/BalloonInventoryView';
@@ -679,6 +680,8 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-gray-100">{auditLogs.map(log => (<tr key={log.id} className="hover:bg-slate-50"><td className="px-6 py-4 text-xs font-mono">{new Date(log.created_at).toLocaleString('es-VE')}</td><td className="px-6 py-4 font-semibold">@{log.user_name}</td><td className="px-6 py-4">{log.lead_name}</td><td className="px-6 py-4 text-xs">{log.action_details}</td></tr>))}</tbody>
                   </table>
                 </div>
+              ) : activeTab === 'users' ? (
+                <UsersView />
               ) : activeTab === 'agenda' ? (
                 <AgendaView API_KEY={API_KEY} leads={leads} />
               ) : activeTab === 'leads' ? (
