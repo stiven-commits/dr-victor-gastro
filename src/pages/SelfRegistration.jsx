@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Loader2, Search, UserPlus, UserCheck, ChevronLeft, Syringe } from 'lucide-react';
-import logo from '../assets/logo-dr-victor-horizontal-300x66.png'; //
+import logo from '../assets/logo-dr-victor-horizontal-300x66.png'; 
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
 const POST_URL = 'https://victorbot.sosmarketing.agency/webhook/create-lead';
@@ -8,7 +8,6 @@ const UPDATE_URL = 'https://victorbot.sosmarketing.agency/webhook/update-lead';
 const GET_LEADS_URL = 'https://victorbot.sosmarketing.agency/webhook/api-leads';
 const GET_TREATMENTS_URL = 'https://victorbot.sosmarketing.agency/webhook/get-treatments';
 const VZLA_STATES = ['Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital', 'Falcón', 'Guárico', 'La Guaira', 'Lara', 'Mérida', 'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre', 'Táchira', 'Trujillo', 'Yaracuy', 'Zulia'];
-
 
 export default function SelfRegistration() {
   const [viewMode, setViewMode] = useState('home'); 
@@ -26,6 +25,9 @@ export default function SelfRegistration() {
   const [isSearching, setIsSearching] = useState(false);
   const [existingPatient, setExistingPatient] = useState(null);
   const [newTreatmentSelected, setNewTreatmentSelected] = useState('');
+  
+  // Estados para el Dropdown Inteligente
+  const [showTreatmentDropdown, setShowTreatmentDropdown] = useState(false);
   
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedAnesthesiaTerms, setAcceptedAnesthesiaTerms] = useState(false);
@@ -51,7 +53,6 @@ export default function SelfRegistration() {
       try {
         const response = await fetch(GET_TREATMENTS_URL, { headers: { 'Authorization': API_KEY } });
         const data = await response.json();
-        // Ahora guardamos el objeto completo {name, price, requires_anesthesia}, no solo el nombre
         const normalizedData = Array.isArray(data) ? (Array.isArray(data[0]) ? data[0] : data) : [];
         setTreatmentsList(normalizedData);
       } catch (error) { console.error(error); }
@@ -109,7 +110,6 @@ export default function SelfRegistration() {
 
   const selectedProcedure = viewMode === 'new' ? formData.treatment : newTreatmentSelected;
   const selectedProcedureObj = treatmentsList.find(t => t.name === selectedProcedure);
-  // Si eligen "Otro", por seguridad legal asumimos que SÍ requiere consentimiento
   const requiresConsent = selectedProcedureObj ? selectedProcedureObj.requires_consent : (selectedProcedure === 'Otro' ? true : false);
   const requiresAnesthesia = selectedProcedureObj ? selectedProcedureObj.requires_anesthesia : false;
 
@@ -275,7 +275,7 @@ export default function SelfRegistration() {
             </button>
           )}
           <img src={logo} alt="Dr. Víctor Logo" className="h-10 md:h-12 mx-auto mb-3 brightness-0 invert" /> {/* */}
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Kiosco de Registro</h1>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Registro</h1>
         </div>
 
         <div className="flex-1">
@@ -325,13 +325,38 @@ export default function SelfRegistration() {
                   </div>
                 </div>
 
-                <div className="mb-8">
+                <div className="mb-8 relative">
                   <label className="block text-sm font-bold text-slate-700 mb-2">¿Qué procedimiento se realizará el día de hoy? *</label>
-                  <select required value={newTreatmentSelected} onChange={e => setNewTreatmentSelected(e.target.value)} className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-[#0056b3] text-lg bg-white font-bold text-[#0056b3]">
-                    <option value="">Seleccione el procedimiento...</option>
-                    {treatmentsList.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                    <option value="Otro">Otro</option>
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newTreatmentSelected}
+                      onChange={(e) => { setNewTreatmentSelected(e.target.value); setShowTreatmentDropdown(true); }}
+                      onFocus={() => setShowTreatmentDropdown(true)}
+                      onClick={() => setShowTreatmentDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowTreatmentDropdown(false), 200)}
+                      className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-[#0056b3] text-lg bg-blue-50/50 font-bold text-[#0056b3] placeholder-blue-300"
+                      placeholder="Buscar procedimiento..."
+                      required
+                    />
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 pointer-events-none" />
+                  </div>
+                  {showTreatmentDropdown && (
+                    <ul className="absolute z-50 w-full mt-1 bg-white border border-blue-100 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                      {treatmentsList.filter(t => t.name.toLowerCase().includes(newTreatmentSelected.toLowerCase())).map((t) => (
+                        <li
+                          key={t.name}
+                          onMouseDown={(e) => { e.preventDefault(); setNewTreatmentSelected(t.name); setShowTreatmentDropdown(false); }}
+                          className="p-4 hover:bg-blue-50 cursor-pointer text-slate-700 font-medium border-b border-slate-50 last:border-0"
+                        >
+                          {t.name}
+                        </li>
+                      ))}
+                      <li onMouseDown={(e) => { e.preventDefault(); setNewTreatmentSelected('Otro'); setShowTreatmentDropdown(false); }} className="p-4 hover:bg-blue-50 cursor-pointer text-[#0056b3] font-bold">
+                        Otro
+                      </li>
+                    </ul>
+                  )}
                 </div>
 
                 {requiresConsent && (
@@ -385,13 +410,38 @@ export default function SelfRegistration() {
                   Datos Personales y Procedimiento
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-2 relative">
                     <label className="block text-sm font-bold text-slate-700 mb-2">Procedimiento a realizar *</label>
-                    <select required value={formData.treatment} onChange={e => setFormData({...formData, treatment: e.target.value})} className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-[#0056b3] text-lg bg-blue-50/50 font-bold text-[#0056b3]">
-                      <option value="">Seleccione el procedimiento...</option>
-                      {treatmentsList.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                      <option value="Otro">Otro</option>
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.treatment}
+                        onChange={(e) => { setFormData({...formData, treatment: e.target.value}); setShowTreatmentDropdown(true); }}
+                        onFocus={() => setShowTreatmentDropdown(true)}
+                        onClick={() => setShowTreatmentDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowTreatmentDropdown(false), 200)}
+                        className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-[#0056b3] text-lg bg-blue-50/50 font-bold text-[#0056b3] placeholder-blue-300"
+                        placeholder="Buscar procedimiento..."
+                        required
+                      />
+                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 pointer-events-none" />
+                    </div>
+                    {showTreatmentDropdown && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-blue-100 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                        {treatmentsList.filter(t => t.name.toLowerCase().includes(formData.treatment.toLowerCase())).map((t) => (
+                          <li
+                            key={t.name}
+                            onMouseDown={(e) => { e.preventDefault(); setFormData({...formData, treatment: t.name}); setShowTreatmentDropdown(false); }}
+                            className="p-4 hover:bg-blue-50 cursor-pointer text-slate-700 font-medium border-b border-slate-50 last:border-0"
+                          >
+                            {t.name}
+                          </li>
+                        ))}
+                        <li onMouseDown={(e) => { e.preventDefault(); setFormData({...formData, treatment: 'Otro'}); setShowTreatmentDropdown(false); }} className="p-4 hover:bg-blue-50 cursor-pointer text-[#0056b3] font-bold">
+                          Otro
+                        </li>
+                      </ul>
+                    )}
                   </div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo *</label><input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50" /></div>
                   <div><label className="block text-sm font-bold text-slate-700 mb-2">Cédula o Pasaporte *</label><input type="text" required value={formData.cedula} onChange={e => setFormData({...formData, cedula: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50" /></div>
@@ -429,36 +479,33 @@ export default function SelfRegistration() {
                     <label className="block text-sm font-bold text-slate-700 mb-2">Estatura (m) *</label>
                     <input type="text" required value={formData.height} onChange={e => { let val = e.target.value.replace(/[^0-9]/g, ''); if (val.length > 1) val = val.slice(0, 1) + '.' + val.slice(1, 3); setFormData({...formData, height: val}); }} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50 font-mono" placeholder="Ej: 1.70" maxLength={4} />
                   </div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">Índice Masa Corporal</label><input type="text" readOnly value={formData.bmi} className="w-full p-4 border border-gray-300 rounded-xl bg-gray-100 font-bold" /></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">IMC (Automático)</label><input type="text" readOnly value={formData.bmi} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-200 text-slate-500 font-bold cursor-not-allowed" /></div>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Fuma?</label><select value={formData.smokes} onChange={e => setFormData({...formData, smokes: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Es asmático?</label><select value={formData.asthmatic} onChange={e => setFormData({...formData, asthmatic: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Alergia a meds?</label><select value={formData.allergic} onChange={e => setFormData({...formData, allergic: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Fuma?</label><select value={formData.smokes} onChange={e => setFormData({...formData, smokes: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Es Asmático?</label><select value={formData.asthmatic} onChange={e => setFormData({...formData, asthmatic: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
+                  <div><label className="block text-sm font-bold text-slate-700 mb-2">¿Sufre de Alergias?</label><select value={formData.allergic} onChange={e => setFormData({...formData, allergic: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50"><option value="">Seleccione</option><option value="Si">Sí</option><option value="No">No</option></select></div>
                 </div>
+
                 {formData.allergic === 'Si' && (
-                  <div className="mb-6">
-                    <label className="block text-sm font-bold text-red-600 mb-2">¿A cuáles medicamentos es alérgico?</label>
-                    <input type="text" required value={formData.allergies_detail} onChange={e => setFormData({...formData, allergies_detail: e.target.value})} className="w-full p-4 border-2 border-red-300 rounded-xl bg-red-50" />
-                  </div>
+                  <div className="mb-6"><label className="block text-sm font-bold text-red-600 mb-2">Especifique a qué medicamentos o alimentos:</label><input type="text" value={formData.allergies_detail} onChange={e => setFormData({...formData, allergies_detail: e.target.value})} className="w-full p-4 border-2 border-red-100 rounded-xl bg-red-50 focus:ring-red-200 focus:border-red-300 outline-none" placeholder="Ej: Penicilina, Mariscos..." /></div>
                 )}
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Antecedentes Médicos</label>
-                  <textarea rows="3" value={formData.medical_history} onChange={e => setFormData({...formData, medical_history: e.target.value})} className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50"></textarea>
-                </div>
+
+                <div><label className="block text-sm font-bold text-slate-700 mb-2">Antecedentes Médicos / Cirugías Previas</label><textarea value={formData.medical_history} onChange={e => setFormData({...formData, medical_history: e.target.value})} rows="3" className="w-full p-4 border border-gray-300 rounded-xl bg-slate-50 resize-none" placeholder="Ej: Hipertensión, Apendicectomía, etc." /></div>
               </section>
 
               {requiresConsent && (
-              <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <section className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200">
                 <h2 className="text-xl font-bold text-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <span className="bg-blue-100 text-[#0056b3] w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span> 
-                  Información y Consentimiento
+                  Consentimiento del Procedimiento
                 </h2>
                 <GeneralConsentText />
-                
+
                 {isMinorNew && (
                   <div className="mb-6 p-5 bg-amber-50 border-2 border-amber-200 rounded-xl shadow-sm">
-                    <h3 className="text-amber-800 font-bold mb-3 uppercase tracking-wide text-sm flex items-center gap-2">⚠️ Autorización de Representante Legal</h3>
+                    <h3 className="text-amber-800 font-bold mb-3 uppercase tracking-wide text-sm">⚠️ Autorización de Representante Legal</h3>
                     <p className="text-base text-amber-900 leading-relaxed font-medium">
                       "Yo, <input type="text" required placeholder="Nombre del Representante" className="border-b-2 border-amber-400 bg-transparent outline-none px-2 py-1 font-bold text-slate-900 placeholder-amber-700/50 w-64" value={formData.guardian_name} onChange={e => setFormData({...formData, guardian_name: e.target.value})} />, identificado(a) con la cédula de identidad <input type="text" required placeholder="Nro. Cédula" className="border-b-2 border-amber-400 bg-transparent outline-none px-2 py-1 font-bold text-slate-900 placeholder-amber-700/50 w-32" value={formData.guardian_cedula} onChange={e => setFormData({...formData, guardian_cedula: e.target.value})} />, autorizo al Dr. Víctor Manrique a realizar a el(la) paciente <span className="font-bold underline decoration-amber-400 decoration-2">{formData.name || '____________________'}</span> el procedimiento aquí estipulado."
                     </p>
