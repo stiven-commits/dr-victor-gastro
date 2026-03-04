@@ -356,16 +356,15 @@ export function EditLeadModal({ isOpen, onClose, editFormData, setEditFormData, 
         </div>
 
         <form onSubmit={handleSaveEdit} className="p-6 overflow-y-auto space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Nombre</label><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
-            <div><label className="block text-sm font-semibold mb-1">Teléfono</label><input type="text" value={editFormData.phone} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
             <div><label className="block text-sm font-semibold mb-1">Correo Electrónico</label><input type="email" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} placeholder="Opcional" className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={editFormData.cedula} onChange={(e) => setEditFormData({ ...editFormData, cedula: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} placeholder="V-12345678"/></div>
-            <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={editFormData.edad} onChange={(e) => setEditFormData({ ...editFormData, edad: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} placeholder="Años" min="1" max="120"/></div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={editFormData.cedula} onChange={(e) => setEditFormData({ ...editFormData, cedula: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} placeholder="V-12345678"/></div>
+        <div><label className="block text-sm font-semibold mb-1">Teléfono</label><input type="text" value={editFormData.phone} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} /></div>
+        <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={editFormData.edad} onChange={(e) => setEditFormData({ ...editFormData, edad: e.target.value })} className={`w-full p-2.5 border rounded-lg outline-none focus:ring-2 ${leadToEdit.is_patient ? 'focus:ring-purple-700' : 'focus:ring-slate-800'}`} placeholder="Años" min="1" max="120"/></div>
+      </div>
 
           {/* TODO: Implementar validación de permisos de Rol (Lectura/Escritura) */}
           <div>
@@ -561,16 +560,15 @@ export function AddManualModal({ isOpen, onClose, newManualData, setNewManualDat
             <label htmlFor="isPatientToggle" className="font-bold text-[#0056b3] cursor-pointer">{newManualData.is_patient ? '⭐ Guardar como Paciente Clínico' : '🎯 Guardar solo como Lead (Prospecto)'}</label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Nombre Completo *</label><input required type="text" value={newManualData.name} onChange={(e) => setNewManualData({ ...newManualData, name: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Teléfono *</label><input required type="text" value={newManualData.phone} onChange={(e) => setNewManualData({ ...newManualData, phone: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
             <div><label className="block text-sm font-semibold mb-1">Correo (Email)</label><input type="email" value={newManualData.email} onChange={(e) => setNewManualData({ ...newManualData, email: e.target.value })} placeholder="Opcional" className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={newManualData.cedula} onChange={(e) => setNewManualData({ ...newManualData, cedula: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="V-12345678" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={newManualData.edad} onChange={(e) => setNewManualData({ ...newManualData, edad: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Años" min="1" max="120" /></div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div><label className="block text-sm font-semibold mb-1">Cédula</label><input type="text" value={newManualData.cedula} onChange={(e) => setNewManualData({ ...newManualData, cedula: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="V-12345678" /></div>
+        <div><label className="block text-sm font-semibold mb-1">Teléfono *</label><input required type="text" value={newManualData.phone} onChange={(e) => setNewManualData({ ...newManualData, phone: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" /></div>
+        <div><label className="block text-sm font-semibold mb-1">Edad</label><input type="number" value={newManualData.edad} onChange={(e) => setNewManualData({ ...newManualData, edad: e.target.value })} className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-[#0056b3]" placeholder="Años" min="1" max="120" /></div>
+      </div>
 
           {parseInt(newManualData.edad) < 18 && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">

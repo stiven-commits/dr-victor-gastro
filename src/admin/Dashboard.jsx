@@ -688,7 +688,7 @@ export default function Dashboard() {
                 <AgendaView API_KEY={API_KEY} leads={leads} />
               ) : activeTab === 'leads' ? (
                 <div className="flex flex-col">
-                  <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">?? Doble clic para editar.</p>
+                  <p className="px-6 py-2 text-xs text-slate-400 bg-slate-50 border-b border-gray-100">💡 Doble clic para editar.</p>
                                     <table className="w-full text-sm text-left min-w-[320px] md:min-w-[1000px]">
                     <thead className="bg-gray-50 text-slate-800">
                       <tr>
@@ -716,7 +716,7 @@ export default function Dashboard() {
                               <div className="font-bold text-slate-800">{lead.name}</div>
                               <div className="text-xs font-mono text-slate-500 mt-0.5">{lead.phone}</div>
                               {lead.username && lead.username !== 'Registro Manual' && lead.username !== 'Auto Registro Tablet' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-[#0056b3] hover:underline flex items-center gap-0.5 mt-1">@{lead.username}</a>}
-                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">{lead.username === 'Registro Manual' ? '?? Registro Manual' : '?? Auto Registro Tablet'}</span>}
+                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-1">{lead.username === 'Registro Manual' ? '📝 Registro Manual' : '📝 Auto Registro Tablet'}</span>}
                             </td>
                             <td className="px-6 py-4 align-top hidden md:table-cell">
                               <div className="flex flex-wrap gap-1">{getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">{t}</span>)}</div>
@@ -778,7 +778,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  <p className="px-6 py-2 text-xs text-slate-400 bg-purple-50 border-b border-purple-100">?? Doble clic para editar datos o tratamientos.</p>
+                  <p className="px-6 py-2 text-xs text-slate-400 bg-purple-50 border-b border-purple-100">💡 Doble clic para editar datos o tratamientos.</p>
                                     <table className="w-full text-sm text-left min-w-[320px] md:min-w-[1100px]">
                     <thead className="bg-purple-50 text-purple-900">
                       <tr>
@@ -800,7 +800,7 @@ export default function Dashboard() {
                               <div className="font-bold text-slate-800">{lead.name}</div>
                               <div className="text-xs text-slate-500 mt-0.5">{lead.phone}</div>
                               {lead.username && lead.username !== 'Registro Manual' && lead.username !== 'Auto Registro Tablet' && <a href={`https://instagram.com/${lead.username}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-[11px] text-purple-600 hover:underline mt-1 block font-medium">@{lead.username}</a>}
-                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-[11px] text-slate-400 mt-1 block font-medium">{lead.username === 'Registro Manual' ? '?? Registro Manual' : '?? Auto Registro Tablet'}</span>}
+                              {(lead.username === 'Registro Manual' || lead.username === 'Auto Registro Tablet') && <span className="text-[11px] text-slate-400 mt-1 block font-medium">{lead.username === 'Registro Manual' ? '📝 Registro Manual' : '📝 Auto Registro Tablet'}</span>}
                               <div className="text-[9px] text-slate-400 mt-2 font-mono flex flex-col hidden md:flex">
                                 <span className="uppercase tracking-wider font-semibold text-[8px] text-slate-300">Ingres?</span>
                                 {new Date(lead.created_at).toLocaleString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: '2-digit' })}
@@ -816,13 +816,13 @@ export default function Dashboard() {
                               <div className="flex flex-wrap gap-1">
                                 {getTreatmentsArray(lead.treatment).map(t => <span key={t} className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">{t}</span>)}
                               </div>
-                              {hasEditPermission && (String(lead.treatment || '').toLowerCase().includes('bal?n') || String(lead.treatment || '').toLowerCase().includes('balon')) && (
+                              {hasEditPermission && (String(lead.treatment || '').toLowerCase().includes('colocación balón') || String(lead.treatment || '').toLowerCase().includes('colocacion balon')) && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleOpenBalloonDeduction(lead); }}
                                   className="mt-2 inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition text-xs font-bold"
                                   title="Asignar Bal?n"
                                 >
-                                  <Package size={16} /> Asignar Bal?n
+                                  <Package size={16} /> Asignar Balón
                                 </button>
                               )}
                             </td>
@@ -911,12 +911,12 @@ export default function Dashboard() {
                                   <button onClick={(e) => { e.stopPropagation(); setActiveNotesLead(lead); setNotesPage(1); setNotesModalOpen(true); }} className="w-full mt-1 text-xs bg-white text-purple-700 px-4 py-3 rounded-xl border border-purple-200 shadow-sm font-bold flex justify-center items-center">
                                     Abrir Notas ({parseNotes(lead.notes).length})
                                   </button>
-                                  {hasEditPermission && (String(lead.treatment || '').toLowerCase().includes('bal?n') || String(lead.treatment || '').toLowerCase().includes('balon')) && (
+                                  {hasEditPermission && (String(lead.treatment || '').toLowerCase().includes('colocación balón') || String(lead.treatment || '').toLowerCase().includes('colocacion balon')) && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleOpenBalloonDeduction(lead); }}
                                       className="w-full mt-1 text-xs bg-blue-50 text-blue-700 px-4 py-3 rounded-xl border border-blue-200 shadow-sm font-bold flex justify-center items-center gap-2"
                                     >
-                                      <Package size={14} /> Asignar Bal?n
+                                      <Package size={14} /> Asignar Balón
                                     </button>
                                   )}
                                 </div>
@@ -972,6 +972,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
