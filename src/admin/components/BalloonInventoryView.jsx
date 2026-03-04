@@ -104,7 +104,6 @@ export default function BalloonInventoryView() {
     <div className="p-6 space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">Inventario de Balones</h2>
           <p className="text-slate-500">Control de stock físico de dispositivos gástricos</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-[#0056b3] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-900/10">

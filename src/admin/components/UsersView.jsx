@@ -136,7 +136,6 @@ export default function UsersView() {
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">Gestión de Usuarios</h2>
           <p className="text-slate-500">Administra accesos y permisos del sistema</p>
         </div>
         <button onClick={() => handleOpenModal()} className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition">

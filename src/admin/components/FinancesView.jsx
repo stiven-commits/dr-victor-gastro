@@ -63,6 +63,7 @@ const getFormattedDate = (date) => {
 
 export default function FinancesView() {
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const canEdit = currentUser?.role === 'admin' || (currentUser?.permissions && currentUser.permissions['finances'] === 'edit');
 
   const [finances, setFinances] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -512,16 +513,16 @@ export default function FinancesView() {
                       <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{status}</span></td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          {status !== 'Pagado' && status !== 'Reverso' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">Ajuste</button>}
+                          {canEdit && status !== 'Pagado' && status !== 'Reverso' && <button onClick={() => { setSelectedRecord(item); setAdjustForm({ type: 'discount', amount_usd: '' }); setIsAdjustModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">Ajuste</button>}
                           
                           {parseFloat(item.amount_paid || 0) > 0 && (
                             <>
                               <button onClick={() => { setDetailsRecord(item); setIsDetailsModalOpen(true); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">Detalles</button>
-                              <button onClick={() => handleOpenReverseModal(item)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1" title="Reversar Pago">Reversar</button>
+                              {canEdit && <button onClick={() => handleOpenReverseModal(item)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 flex items-center gap-1" title="Reversar Pago">Reversar</button>}
                             </>
                           )}
                           
-                          {balance > 0 && <button onClick={() => { setSelectedRecords([]); handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) }); }} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Pagar</button>}
+                          {canEdit && balance > 0 && <button onClick={() => { setSelectedRecords([]); handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) }); }} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Pagar</button>}
                         </div>
                       </td>
                     </tr>
@@ -551,6 +552,7 @@ export default function FinancesView() {
     </div>
   );
 }
+
 
 
 
