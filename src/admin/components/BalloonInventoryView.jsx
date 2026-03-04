@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Package, Plus, History, ArrowDownCircle, ArrowUpCircle, Loader2, X, Trash2, AlertTriangle, Filter } from 'lucide-react';
 
 const API_KEY = 'Bearer v2ew5w8mAq3';
@@ -9,7 +9,9 @@ const DELETE_LOG_URL = 'https://victorbot.sosmarketing.agency/webhook/api-delete
 const BALLOON_BRANDS = [
   { id: 'allurion', name: 'Allurion', duration: '4 Meses', color: 'blue' },
   { id: 'ovalsilhouette', name: 'OvalSilhouette', duration: '6 Meses', color: 'purple' },
-  { id: 'spatz3', name: 'Spatz3', duration: '1 Año', color: 'amber' }
+  { id: 'spatz3', name: 'Spatz3', duration: '1 Año', color: 'amber' },
+  { id: 'gastroballon', name: 'Gastroballon', duration: '6 Meses', color: 'indigo' },
+  { id: 'orbera365', name: 'Orbera365', duration: '1 Año', color: 'emerald' }
 ];
 
 export default function BalloonInventoryView() {
@@ -79,7 +81,7 @@ export default function BalloonInventoryView() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Estás seguro de borrar este registro? El stock se recalculará automáticamente.")) return;
+    if (!window.confirm("Â¿EstÃ¡s seguro de borrar este registro? El stock se recalcularÃ¡ automÃ¡ticamente.")) return;
     
     try {
       await fetch(DELETE_LOG_URL, {
@@ -104,14 +106,14 @@ export default function BalloonInventoryView() {
     <div className="p-6 space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <p className="text-slate-500">Control de stock físico de dispositivos gástricos</p>
+          <p className="text-slate-500">Control de stock fí­sico de dispositivos gástricos</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-[#0056b3] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-900/10">
           <Plus size={20} /> Registrar Compra
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {BALLOON_BRANDS.map((brand) => {
           const brandData = inventory.find(i => i?.brand_id === brand.id);
           const stock = brandData?.current_stock ? parseInt(brandData.current_stock) : 0;
@@ -204,7 +206,7 @@ export default function BalloonInventoryView() {
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400">{log.registered_by}</td>
                     
-                    {/* BOTÓN DE ACCIÓN CORREGIDO: Más contraste y siempre visible */}
+                    {/* BOTÃ“N DE ACCIÃ“N CORREGIDO: MÃ¡s contraste y siempre visible */}
                     <td className="px-6 py-4 text-right">
                       <button 
                         onClick={() => handleDelete(log.id)}
@@ -260,3 +262,5 @@ export default function BalloonInventoryView() {
     </div>
   );
 }
+
+

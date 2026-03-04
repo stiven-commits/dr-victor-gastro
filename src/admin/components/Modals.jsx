@@ -853,7 +853,9 @@ export function CreateAppointmentModal({ isOpen, onClose, leads, handleCreate })
 const BALLOON_BRANDS = [
   { id: 'allurion', name: 'Allurion', duration: '4 Meses' },
   { id: 'ovalsilhouette', name: 'OvalSilhouette', duration: '6 Meses' },
-  { id: 'spatz3', name: 'Spatz3', duration: '1 Año' }
+  { id: 'spatz3', name: 'Spatz3', duration: '1 Año' },
+  { id: 'gastroballon', name: 'Gastroballon', duration: '6 Meses' },
+  { id: 'orbera365', name: 'Orbera365', duration: '1 Año' }
 ];
 
 export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm, balloonStock = [] }) {
@@ -939,3 +941,4 @@ export function BalloonDeductionModal({ isOpen, onClose, patient, onConfirm, bal
     </div>
   );
 }
+
