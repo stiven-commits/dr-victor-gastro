@@ -211,9 +211,11 @@ export default function FinancesView() {
 
     try {
       const regBy = currentUser?.name || currentUser?.username || 'Sistema';
+      // Para registrar pagos el backend espera el ID real del tratamiento del paciente.
+      const getPaymentTargetId = (row) => row?.lead_treatment_id ?? null;
       const commonPayload = {
         payment_method: paymentForm.payment_method || 'Zelle',
-        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? '' : (paymentForm.reference_number || '')),
+        reference_number: (paymentForm.payment_method === 'Efectivo USD' ? 'Efectivo' : (paymentForm.reference_number || '')),
         exchange_rate_bcv: paymentForm.exchange_rate_bcv ? parseLocaleNumber(paymentForm.exchange_rate_bcv) : null,
         registered_by: regBy
       };
@@ -228,7 +230,7 @@ export default function FinancesView() {
           if (remaining <= 0) break;
           const balance = parseMoneyValue(rec.balance);
           if (Number.isNaN(balance) || balance <= 0) continue;
-          const leadTreatmentId = getLeadTreatmentId(rec);
+          const leadTreatmentId = getPaymentTargetId(rec);
           if (!leadTreatmentId) continue;
 
           const allocated = Math.min(remaining, balance);
@@ -260,16 +262,35 @@ export default function FinancesView() {
         }
 
         if (remaining > 0.01) {
-          alert(`Quedó un excedente de ${formatUsd(remaining)} sin aplicar por falta de deuda.`);
+          const creditTarget = targets.find((r) => getPaymentTargetId(r));
+          if (!creditTarget) {
+            throw new Error('No se encontró un tratamiento destino para registrar el crédito excedente.');
+          }
+
+          const creditPayload = {
+            lead_treatment_id: getPaymentTargetId(creditTarget),
+            amount_usd: remaining,
+            amount_bs: totalBs && parsedUsd > 0 ? (totalBs * (remaining / parsedUsd)) : null,
+            ...commonPayload
+          };
+
+          const creditResponse = await fetch(POST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
+            body: JSON.stringify(creditPayload)
+          });
+          if (!creditResponse.ok) {
+            const errorBody = await creditResponse.text().catch(() => '');
+            throw new Error(errorBody || `Error en respuesta del servidor (${creditResponse.status})`);
+          }
+
+          alert(`Se registró un crédito a favor por ${formatUsd(remaining)}.`);
         }
       } else {
         const target = selectedRecords.length === 1 ? selectedRecords[0] : selectedRecord;
-        const targetId = getLeadTreatmentId(target);
+        const targetId = getPaymentTargetId(target);
         const targetBalance = parseMoneyValue(target?.balance);
-        if (!targetId) return alert('No se encontró el ID del tratamiento para registrar el pago.');
-        if (!Number.isNaN(targetBalance) && targetBalance > 0 && parsedUsd > targetBalance + 0.01) {
-          return alert(`El monto supera el saldo pendiente (${formatUsd(targetBalance)}).`);
-        }
+        if (!targetId) return alert('No se encontró el ID del tratamiento (lead_treatment_id) para registrar el pago.');
 
         const payload = {
           lead_treatment_id: targetId,
@@ -287,14 +308,19 @@ export default function FinancesView() {
           const errorBody = await response.text().catch(() => '');
           throw new Error(errorBody || `Error en respuesta del servidor (${response.status})`);
         }
+
+        if (!Number.isNaN(targetBalance) && targetBalance > 0 && parsedUsd > targetBalance + 0.01) {
+          alert(`Pago registrado con crédito a favor de ${formatUsd(parsedUsd - targetBalance)}.`);
+        }
       }
 
       setIsModalOpen(false);
       setSelectedRecords([]);
       fetchFinances();
     } catch (error) {
-      console.error('Error al procesar pago:', error);
-      alert('Hubo un error al registrar el pago. Verifique los datos.');
+      const msg = error?.message || 'Error desconocido';
+      console.error('Error al procesar pago:', msg, error);
+      alert(`Hubo un error al registrar el pago: ${msg}`);
     } finally {
       setSubmittingPayment(false);
     }
@@ -388,10 +414,13 @@ export default function FinancesView() {
   let incomeByTreatment = {};
   let totalPeriodIncome = 0;
   let totalPendingBalance = 0;
+  let totalCreditBalance = 0;
   let periodPayments = [];
 
   filteredFinances.forEach(item => {
-    totalPendingBalance += parseFloat(item.balance || 0); // Acumulación del saldo global
+    const currentBalance = parseMoneyValue(item.balance) || 0;
+    if (currentBalance > 0) totalPendingBalance += currentBalance;
+    if (currentBalance < 0) totalCreditBalance += Math.abs(currentBalance);
     const totalCost = parseFloat(item.agreed_price || item.agreed_price_usd || 0);
     const sortedPayments = [...(item.payments_history || [])].sort((a,b) => new Date(a.payment_date) - new Date(b.payment_date));
     let accumulatedPaid = 0;
@@ -416,7 +445,8 @@ export default function FinancesView() {
           cedula: item.cedula, 
           treatment_name: item.treatment_name, 
           total_treatment_cost: totalCost,
-          historical_balance: historicalBalance < 0 ? 0 : historicalBalance
+          historical_balance: historicalBalance > 0 ? historicalBalance : 0,
+          historical_credit: historicalBalance < 0 ? Math.abs(historicalBalance) : 0
         });
       }
     });
@@ -525,13 +555,15 @@ export default function FinancesView() {
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-center">Sel.</th>
-                  <th className="px-4 py-3 font-semibold">Paciente</th><th className="px-4 py-3 font-semibold">Tratamiento</th><th className="px-4 py-3 font-semibold">Precio Acordado</th><th className="px-4 py-3 font-semibold">Ajustes</th><th className="px-4 py-3 font-semibold">Pagado</th><th className="px-4 py-3 font-semibold">Saldo Pendiente</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold text-center">Acciones</th>
+                  <th className="px-4 py-3 font-semibold">Paciente</th><th className="px-4 py-3 font-semibold">Tratamiento</th><th className="px-4 py-3 font-semibold">Precio Acordado</th><th className="px-4 py-3 font-semibold">Ajustes</th><th className="px-4 py-3 font-semibold">Pagado</th><th className="px-4 py-3 font-semibold">Saldo Pendiente</th><th className="px-4 py-3 font-semibold">Crédito</th><th className="px-4 py-3 font-semibold">Estado</th><th className="px-4 py-3 font-semibold text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {paginatedFinances.length === 0 ? <tr><td colSpan="9" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
+                {paginatedFinances.length === 0 ? <tr><td colSpan="10" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
                   const status = getStatus(item);
                   const balance = parseMoneyValue(item.balance);
+                  const pending = balance > 0 ? balance : 0;
+                  const credit = balance < 0 ? Math.abs(balance) : 0;
                   const adjustment = parseFloat(item.agreed_price || 0) - parseFloat(item.base_price || item.agreed_price || 0);
                   const selected = selectedRecords.some((r) => getLeadTreatmentId(r) === getLeadTreatmentId(item));
                   return (
@@ -550,7 +582,8 @@ export default function FinancesView() {
                       <td className="px-4 py-3 align-top font-semibold text-slate-800">$<span className="font-mono">{parseFloat(item.agreed_price || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top font-semibold">{adjustment !== 0 ? <span className={`font-mono px-2 py-0.5 rounded-full text-[11px] border ${adjustment > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{adjustment > 0 ? '+' : ''}{adjustment.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span> : <span className="text-slate-300">-</span>}</td>
                       <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-green-600">{parseFloat(item.amount_paid || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
-                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{parseFloat(item.balance || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-red-500">{pending.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
+                      <td className="px-4 py-3 align-top font-semibold">$<span className="font-mono text-emerald-600">{credit.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span></td>
                       <td className="px-4 py-3 align-top"><span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadge(status)}`}>{status}</span></td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -563,7 +596,7 @@ export default function FinancesView() {
                             </>
                           )}
                           
-                          {canEdit && balance > 0 && <button onClick={() => { setSelectedRecords([]); handleOpenPaymentModal({ ...item, balance: parseFloat(item.balance || 0) }); }} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Pagar</button>}
+                          {canEdit && balance > 0 && <button onClick={() => { setSelectedRecords([]); handleOpenPaymentModal({ ...item, balance: parseMoneyValue(item.balance) || 0 }); }} className="bg-[#0056b3] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700">Pagar</button>}
                         </div>
                       </td>
                     </tr>
@@ -589,12 +622,7 @@ export default function FinancesView() {
       <DetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} record={detailsRecord} />
       <ReverseModal isOpen={isReverseModalOpen} onClose={() => setIsReverseModalOpen(false)} record={selectedRecord} form={reverseForm} setForm={setReverseForm} onSubmit={handleReverseSubmit} submitting={submittingReverse} formatInput={formatNumberInput} />
 
-      <FinancesPrint payments={periodPayments} totalIncome={totalPeriodIncome} incomeByMethod={incomeByMethod} incomeByTreatment={incomeByTreatment} dateRange={{ start: startDate, end: endDate }} currentUser={currentUser} logo={logoDr} />
+      <FinancesPrint payments={periodPayments} totalIncome={totalPeriodIncome} totalCredit={totalCreditBalance} incomeByMethod={incomeByMethod} incomeByTreatment={incomeByTreatment} dateRange={{ start: startDate, end: endDate }} currentUser={currentUser} logo={logoDr} />
     </div>
   );
 }
-
-
-
-
-
