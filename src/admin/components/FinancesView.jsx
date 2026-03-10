@@ -35,6 +35,26 @@ const parseLocaleNumber = (val) => {
   return parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
 };
 
+// Soporta números del backend en formato "1234.56" o "1.234,56"
+const parseMoneyValue = (val) => {
+  if (val === null || val === undefined || val === '') return NaN;
+  if (typeof val === 'number') return Number.isFinite(val) ? val : NaN;
+
+  const str = String(val).trim();
+  if (!str) return NaN;
+
+  const hasComma = str.includes(',');
+  const hasDot = str.includes('.');
+
+  if (hasComma && hasDot) {
+    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  }
+  if (hasComma) {
+    return parseFloat(str.replace(',', '.'));
+  }
+  return parseFloat(str);
+};
+
 const formatNumberInput = (val) => {
   if (!val) return '';
   let cleaned = val.replace(/[^0-9,]/g, '');
@@ -202,17 +222,20 @@ export default function FinancesView() {
         let remaining = parsedUsd;
         const totalBs = paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null;
         const targets = [...selectedRecords];
+        let appliedCount = 0;
 
         for (const rec of targets) {
           if (remaining <= 0) break;
-          const balance = parseFloat(rec.balance || 0);
+          const balance = parseMoneyValue(rec.balance);
           if (Number.isNaN(balance) || balance <= 0) continue;
+          const leadTreatmentId = getLeadTreatmentId(rec);
+          if (!leadTreatmentId) continue;
 
           const allocated = Math.min(remaining, balance);
           if (allocated <= 0) continue;
 
           const payload = {
-            lead_treatment_id: getLeadTreatmentId(rec) || null,
+            lead_treatment_id: leadTreatmentId,
             amount_usd: allocated,
             amount_bs: totalBs && parsedUsd > 0 ? (totalBs * (allocated / parsedUsd)) : null,
             ...commonPayload
@@ -223,9 +246,17 @@ export default function FinancesView() {
             headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
             body: JSON.stringify(payload)
           });
-          if (!response.ok) throw new Error('Error en respuesta del servidor');
+          if (!response.ok) {
+            const errorBody = await response.text().catch(() => '');
+            throw new Error(errorBody || `Error en respuesta del servidor (${response.status})`);
+          }
 
           remaining -= allocated;
+          appliedCount += 1;
+        }
+
+        if (appliedCount === 0) {
+          throw new Error('No hay tratamientos válidos para aplicar el pago (sin deuda o sin ID).');
         }
 
         if (remaining > 0.01) {
@@ -233,8 +264,15 @@ export default function FinancesView() {
         }
       } else {
         const target = selectedRecords.length === 1 ? selectedRecords[0] : selectedRecord;
+        const targetId = getLeadTreatmentId(target);
+        const targetBalance = parseMoneyValue(target?.balance);
+        if (!targetId) return alert('No se encontró el ID del tratamiento para registrar el pago.');
+        if (!Number.isNaN(targetBalance) && targetBalance > 0 && parsedUsd > targetBalance + 0.01) {
+          return alert(`El monto supera el saldo pendiente (${formatUsd(targetBalance)}).`);
+        }
+
         const payload = {
-          lead_treatment_id: getLeadTreatmentId(target) || null,
+          lead_treatment_id: targetId,
           amount_usd: parsedUsd,
           amount_bs: paymentForm.amount_bs ? parseLocaleNumber(paymentForm.amount_bs) : null,
           ...commonPayload
@@ -245,7 +283,10 @@ export default function FinancesView() {
           headers: { 'Content-Type': 'application/json', Authorization: API_KEY, Accept: 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (!response.ok) throw new Error('Error en respuesta del servidor');
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => '');
+          throw new Error(errorBody || `Error en respuesta del servidor (${response.status})`);
+        }
       }
 
       setIsModalOpen(false);
@@ -490,7 +531,7 @@ export default function FinancesView() {
               <tbody className="divide-y divide-gray-100">
                 {paginatedFinances.length === 0 ? <tr><td colSpan="9" className="px-4 py-10 text-center text-slate-400">No hay registros financieros para mostrar.</td></tr> : paginatedFinances.map((item, idx) => {
                   const status = getStatus(item);
-                  const balance = parseFloat(item.balance || 0);
+                  const balance = parseMoneyValue(item.balance);
                   const adjustment = parseFloat(item.agreed_price || 0) - parseFloat(item.base_price || item.agreed_price || 0);
                   const selected = selectedRecords.some((r) => getLeadTreatmentId(r) === getLeadTreatmentId(item));
                   return (
