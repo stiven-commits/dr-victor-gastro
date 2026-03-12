@@ -50,23 +50,17 @@ export function PaymentModal({ isOpen, onClose, record, records = [], form, setF
   };
 
   const handleRateChange = (newRate) => {
-    // Si cambiamos la tasa, recalculamos según qué campo tenga el foco o prioridad.
-    // Asumiremos prioridad: Si hay Bs escrito, recalculamos USD. Si no, recalculamos Bs desde USD.
+    // Al cambiar tasa en métodos en Bs, mantenemos fijo el monto en Bs
+    // y solo recalculamos el equivalente en USD.
     const rateValue = parseLocaleNumber(newRate);
     const bsValue = parseLocaleNumber(form.amount_bs);
-    const usdValue = parseLocaleNumber(form.amount_usd);
 
     let updates = { exchange_rate_bcv: newRate };
 
     if (!Number.isNaN(rateValue) && rateValue > 0) {
       if (!Number.isNaN(bsValue) && bsValue > 0) {
-        // Prioridad Bs -> Recalcular USD
         const calculatedUsd = bsValue / rateValue;
         updates.amount_usd = formatNumberInput(calculatedUsd.toFixed(2).replace('.', ','));
-      } else if (!Number.isNaN(usdValue) && usdValue > 0) {
-        // Prioridad USD -> Recalcular Bs
-        const calculatedBs = usdValue * rateValue;
-        updates.amount_bs = formatNumberInput(calculatedBs.toFixed(2).replace('.', ','));
       }
     }
     

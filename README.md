@@ -61,24 +61,29 @@ Impacto práctico:
 - Botones de edición/acción (Agregar registro, Marcar paciente, Asignar balón, Pagar/Ajustar/Reversar) se ocultan si no hay permiso de edición.
 - El doble clic para abrir edición en leads/pacientes está bloqueado si no hay `edit`.
 
-## Cómo maneja pagos de más (estado actual)
+## Cómo maneja pagos de más (crédito a favor)
 
 Lógica en `src/admin/components/FinancesView.jsx`:
 
 - Pago individual:
-  - Si el monto > saldo pendiente, se bloquea y muestra alerta.
+  - Si el monto supera el saldo pendiente, el excedente se registra como crédito a favor.
 - Pago grupal:
-  - Distribuye el monto entre deudas seleccionadas.
-  - Si sobra dinero, muestra alerta de excedente no aplicado.
+  - Distribuye el monto entre las deudas seleccionadas.
+  - Si sobra dinero, el remanente se registra como crédito a favor.
 
-Importante:
-- Actualmente el sistema no genera ni guarda “saldo a favor” automático del paciente.
-- El excedente solo se informa y no se registra como crédito.
+Reflejo visual:
+- Se agregó columna `Crédito` en la tabla de Finanzas.
+- `Saldo Pendiente` muestra solo deuda positiva.
+- El crédito (saldo a favor) se muestra por separado.
+
+Reflejo en impresión:
+- En `src/admin/components/FinancesPrint.jsx` se agregó la columna `Crédito`.
+- El resumen impreso ahora incluye `Crédito Total`.
 
 ## Integraciones backend (webhooks n8n)
 
 La app consume webhooks para:
-- Login y actualización de contraseña.
+- Login y actualización de contraseñas.
 - Leads/pacientes (crear, actualizar, borrar, auditoría).
 - Tratamientos.
 - Finanzas (listar, pago, ajuste, reverso, alta/baja de tratamiento financiero).

@@ -157,17 +157,6 @@ export default function FinancesView() {
 
   useEffect(() => { fetchFinances(); }, []);
 
-  useEffect(() => {
-    const usd = parseLocaleNumber(paymentForm.amount_usd);
-    const bcv = parseLocaleNumber(paymentForm.exchange_rate_bcv);
-    if (!Number.isNaN(usd) && usd > 0 && !Number.isNaN(bcv) && bcv > 0) {
-      const bsValue = (usd * bcv).toFixed(2);
-      setPaymentForm((prev) => ({ ...prev, amount_bs: bsValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }));
-    } else {
-      setPaymentForm((prev) => ({ ...prev, amount_bs: '' }));
-    }
-  }, [paymentForm.amount_usd, paymentForm.exchange_rate_bcv]);
-
   useEffect(() => { setCurrentPage(1); }, [searchTerm, filterStatus, filterState, startDate, endDate]);
 
   const handleOpenPaymentModal = (record) => {
