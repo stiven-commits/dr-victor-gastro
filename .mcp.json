@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "dr_victor_db": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://drvictordb:C3ATAEqjuMm5@72.60.117.80:5432/drvictordb"
+      ],
+      "env": {
+        "PGSSLMODE": "disable"
+      }
+    }
+  }
+}

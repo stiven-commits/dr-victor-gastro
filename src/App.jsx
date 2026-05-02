@@ -17,11 +17,6 @@ import ThankYou from './components/ThankYou'
 import NotFound from './pages/NotFound'
 import SelfRegistration from './pages/SelfRegistration'
 
-// --- 2. IMPORTACIONES DEL CRM (ADMINISTRADOR) ---
-import Login from './admin/Login'
-import Dashboard from './admin/Dashboard'
-import RequireAuth from './admin/RequireAuth'
-
 // --- 3. COMPONENTE QUE AGRUPA TODA TU PÁGINA DE INICIO ---
 const Home = () => (
   <main>
@@ -42,26 +37,16 @@ const Home = () => (
 // --- 4. COMPONENTE PRINCIPAL APP ---
 function App() {
   const location = useLocation()
-  
-  // Detectamos si la URL contiene "login" o "dashboard"
-  const isAdminRoute = location.pathname.includes('/login') || location.pathname.includes('/dashboard')
 
   // NUEVO: Efecto para cambiar el título de la pestaña dinámicamente
   useEffect(() => {
-    if (isAdminRoute) {
-      document.title = 'CRM Dr. Víctor | Panel Administrativo';
-    } else {
-      document.title = 'Dr. Víctor Manrique | Gastroenterólogo - Internista';
-    }
-  }, [location, isAdminRoute]);
+    document.title = 'Dr. Víctor Manrique | Gastroenterólogo - Internista';
+  }, [location]);
 
   // Escudo protector: Ocultar instalación PWA en la web pública
   useEffect(() => {
     const handleInstallPrompt = (e) => {
-      // Si NO estamos en una ruta de administrador, bloqueamos el aviso de instalación
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/dashboard')) {
-        e.preventDefault();
-      }
+      e.preventDefault();
     };
 
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
@@ -71,8 +56,7 @@ function App() {
   return (
     <div className="min-h-screen bg-white font-sans">
       
-      {/* Si NO estamos en el CRM, mostramos el menú público */}
-      {!isAdminRoute && <Navbar />}
+      <Navbar />
 
       <Routes>
         {/* Rutas Públicas */}
@@ -80,18 +64,10 @@ function App() {
         <Route path="/registro" element={<SelfRegistration />} />
         <Route path="/gracias" element={<ThankYou />} />
 
-        {/* Rutas Privadas (CRM) */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={
-          <RequireAuth>
-            <Dashboard />
-          </RequireAuth>
-        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Si NO estamos en el CRM, mostramos el footer público */}
-      {!isAdminRoute && <Footer />}
+      <Footer />
       
     </div>
   )

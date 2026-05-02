@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/stiven/.config/**)",
+      "Read(//c/Users/stiven/AppData/Roaming/**)",
+      "Bash(mkdir -p \"C:/Users/stiven/.codex\")",
+      "Bash(mkdir -p \"C:/Users/stiven/.config/opencode\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"$env:USERPROFILE\\\\.codex\"; New-Item -ItemType Directory -Force -Path \"$env:USERPROFILE\\\\.config\\\\opencode\")",
+      "Read(//c/Users/stive/.config/opencode/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\stive\\.config\\opencode",
+      "C:\\Users\\stive\\.codex"
+    ]
+  }
+}
