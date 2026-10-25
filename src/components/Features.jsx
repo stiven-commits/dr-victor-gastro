@@ -1,3 +1,4 @@
+import { createElement } from 'react'
 import { Award, HeartHandshake, Microscope, ShieldCheck } from 'lucide-react'
 
 const features = [
@@ -38,7 +39,7 @@ function Features() {
         {features.map(({ title, description, Icon }) => (
           <article key={title} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-full bg-light-blue text-medical-blue">
-              <Icon size={30} />
+              {createElement(Icon, { size: 30 })}
             </div>
             <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>

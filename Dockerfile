@@ -1,8 +1,8 @@
 # Etapa 1: Construir el proyecto
-FROM node:20-alpine as build
+FROM node:24-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 

@@ -81,7 +81,7 @@ export default function SelfRegistration() {
       const leads = text ? JSON.parse(text) : [];
       const normalizedData = Array.isArray(leads) ? (Array.isArray(leads[0]) ? leads[0] : leads) : [];
       
-      const cleanCedula = (val) => String(val).toUpperCase().replace(/[\s\-\.]/g, '').replace(/^[VE]/, '');
+      const cleanCedula = (val) => String(val).toUpperCase().replace(/[\s.-]/g, '').replace(/^[VE]/, '');
       const searchClean = cleanCedula(searchCedula);
 
       const found = normalizedData.find(l => {
